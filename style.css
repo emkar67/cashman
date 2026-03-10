@@ -454,3 +454,62 @@ body {
 .summary-table tfoot th.num {
   text-align: right;
 }
+
+.acc-name-input {
+  width: 50%;
+}
+
+.th-account-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 50%;
+}
+
+.table-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: 0.2s;
+}
+
+.table-add-btn:hover {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.table-add-btn-ico {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  flex: 0 0 14px;
+}
+
+.table-add-btn-ico svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+@media (max-width: 650px) {
+  .acc-name-input {
+    width: 100%;
+  }
+
+  .th-account-wrap {
+    width: 100%;
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+}
