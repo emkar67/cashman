@@ -538,7 +538,8 @@ body {
 
 @media (max-width: 650px) {
   .acc-name-wrap {
-    width: 100%;
+    width: 85%;
+    min-width: 210px;
   }
 
   .acc-name-input {
@@ -546,9 +547,21 @@ body {
   }
 
   .th-account-wrap {
-    width: 100%;
-    grid-template-columns: 1fr;
-    justify-items: start;
+    width: 85%;
+    min-width: 210px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    justify-items: stretch;
+  }
+
+  .table-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-scroll .data-table,
+  .table-scroll .total-row {
+    min-width: 500px;
   }
 }
 
@@ -565,6 +578,6 @@ body {
 
   .table-scroll .data-table,
   .table-scroll .total-row {
-    min-width: 560px;
+    min-width: 480px;
   }
 }
