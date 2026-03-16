@@ -2,18 +2,15 @@ const COMPANIES = ['a', 'b'];
 
 const ACCOUNTS = [
   { key: 'current', pl: 'rachunek bieżący', en: 'current account', de: 'Girokonto' },
-  { key: 'vat',     pl: 'rachunek VAT',     en: 'VAT account',     de: 'MwSt.-Konto' },
-  { key: 'fx',      pl: 'rachunek walutowy', en: 'FX account',     de: 'Fremdwährungskonto' },
+  { key: 'vat', pl: 'rachunek VAT', en: 'VAT account', de: 'MwSt.-Konto' },
+  { key: 'fx', pl: 'rachunek walutowy', en: 'FX account', de: 'Fremdwährungskonto' },
 ];
 
 const CURRENCIES = [
   { code: 'PLN', label_pl: 'zł', label_en: 'PLN', label_de: 'PLN' },
-  { code: 'EUR', label_pl: '€',  label_en: '€',   label_de: '€' },
+  { code: 'EUR', label_pl: '€', label_en: '€', label_de: '€' },
 ];
 
-/* =========================
-   i18n
-   ========================= */
 const I18N = {
   pl: {
     'nav.calculator': 'Kalkulator',
@@ -27,13 +24,15 @@ const I18N = {
     'summary.balance': 'Suma sald',
     'summary.total': 'Razem',
     'label.total': 'Suma',
-    'table.account': 'Rachunek',
+    'label.grandTotal': 'Suma ogółem',
     'table.amount': 'Kwota',
-    'table.currency': 'Waluta',
     'table.addAccount': 'Dodaj rachunek',
-    'account.newPlaceholder': 'Nowy rachunek',
+    'company.addBank': 'Dodaj bank',
+    'bank.label': 'Bank {N}',
+    'bank.remove': 'Usuń bank',
+    'account.newPlaceholder': 'nowy rachunek',
     'account.remove': 'Usuń rachunek',
-    'clear.data': 'Wyczyść dane',
+    'clear.data': 'Resetuj dane',
     'export.csv': 'Eksportuj CSV',
     'export.excel': 'Eksportuj Excel',
     'import.csv': 'Importuj CSV',
@@ -54,14 +53,16 @@ const I18N = {
     'summary.company': 'Company',
     'summary.balance': 'Total balances',
     'summary.total': 'Total',
-    'label.total': 'Total',
-    'table.account': 'Account',
+    'label.total': 'Subtotal',
+    'label.grandTotal': 'Grand total',
     'table.amount': 'Amount',
-    'table.currency': 'Currency',
     'table.addAccount': 'Add account',
-    'account.newPlaceholder': 'New account',
+    'company.addBank': 'Add bank',
+    'bank.label': 'Bank {N}',
+    'bank.remove': 'Remove bank',
+    'account.newPlaceholder': 'new account',
     'account.remove': 'Remove account',
-    'clear.data': 'Clear data',
+    'clear.data': 'Reset data',
     'export.csv': 'Export CSV',
     'export.excel': 'Export Excel',
     'import.csv': 'Import CSV',
@@ -83,13 +84,15 @@ const I18N = {
     'summary.balance': 'Summe der Salden',
     'summary.total': 'Insgesamt',
     'label.total': 'Summe',
-    'table.account': 'Konto',
+    'label.grandTotal': 'Gesamtsumme',
     'table.amount': 'Betrag',
-    'table.currency': 'Währung',
     'table.addAccount': 'Konto hinzufügen',
-    'account.newPlaceholder': 'Neues Konto',
+    'company.addBank': 'Bank hinzufügen',
+    'bank.label': 'Bank {N}',
+    'bank.remove': 'Bank entfernen',
+    'account.newPlaceholder': 'neues Konto',
     'account.remove': 'Konto entfernen',
-    'clear.data': 'Daten löschen',
+    'clear.data': 'Daten zurücksetzen',
     'export.csv': 'CSV exportieren',
     'export.excel': 'Excel exportieren',
     'import.csv': 'CSV importieren',
@@ -102,17 +105,24 @@ const I18N = {
 };
 
 const LANG_KEY = 'calc_lang';
+const STATE_KEY = 'bank_balances_state_v5';
 const SUPPORTED_LANGS = ['pl', 'en', 'de'];
-let currentLang = 'pl';
-
-/* =========================
-   Number formatting
-   ========================= */
 const LOCALE_BY_LANG = { pl: 'pl-PL', en: 'en-US', de: 'de-DE' };
-let nf = new Intl.NumberFormat(LOCALE_BY_LANG[currentLang], {
+
+let currentLang = 'pl';
+let nf = new Intl.NumberFormat('pl-PL', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2
 });
+
+let appState = null;
+let saveTimer = null;
+let pendingFocusId = null;
+
+function t(key, vars = {}) {
+  let str = (I18N[currentLang] && I18N[currentLang][key]) || I18N.pl[key] || key;
+  return str.replace(/\{(\w+)\}/g, (_, token) => vars[token] ?? `{${token}}`);
+}
 
 function setNumberLocale(lang) {
   const locale = LOCALE_BY_LANG[lang] || 'pl-PL';
@@ -145,10 +155,10 @@ function parseNum(v) {
 
   const lastDot = s.lastIndexOf('.');
   const lastComma = s.lastIndexOf(',');
-
   let decSep = null;
+
   if (lastDot !== -1 || lastComma !== -1) {
-    decSep = (lastDot > lastComma) ? '.' : ',';
+    decSep = lastDot > lastComma ? '.' : ',';
   }
 
   if (decSep) {
@@ -171,14 +181,6 @@ function parseNum(v) {
 
   const n = parseFloat(s);
   return Number.isFinite(n) ? n : 0;
-}
-
-/* =========================
-   helpers
-   ========================= */
-function t(key, vars = {}) {
-  let str = (I18N[currentLang] && I18N[currentLang][key]) || I18N.pl[key] || key;
-  return str.replace(/\{(\w+)\}/g, (_, token) => vars[token] ?? `{${token}}`);
 }
 
 function currencyLabel(code) {
@@ -205,33 +207,6 @@ function isDefaultRowId(rowId) {
   return ACCOUNTS.some(acc => acc.key === rowId);
 }
 
-function makeCustomRowId() {
-  return `custom_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function getDefaultRowsByCompany() {
-  return Object.fromEntries(
-    COMPANIES.map(letter => [
-      letter,
-      ACCOUNTS.map(acc => ({
-        rowId: acc.key,
-        name: accountLabel(acc.key),
-        amount: formatNum(0),
-        currency: defaultCurrencyForAcc(acc.key),
-      }))
-    ])
-  );
-}
-
-function getCompanyRows(letter) {
-  return Array.from(document.querySelectorAll(`.js-bank-body[data-company="${letter}"] tr[data-row-id]`));
-}
-
-function getCompanyDisplayName(letter) {
-  const L = letter.toUpperCase();
-  return document.getElementById(`name-${letter}`)?.value.trim() || t('company.defaultName', { L });
-}
-
 function isDefaultAccountName(rowId, value) {
   if (!isDefaultRowId(rowId)) return false;
   const trimmed = String(value ?? '').trim();
@@ -239,7 +214,122 @@ function isDefaultAccountName(rowId, value) {
 
   const acc = ACCOUNTS.find(x => x.key === rowId);
   if (!acc) return false;
+
   return [acc.pl, acc.en, acc.de].includes(trimmed);
+}
+
+function makeId(prefix) {
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function escapeHtmlAttr(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('"', '&quot;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;');
+}
+
+function createDefaultAccount(rowId) {
+  return {
+    rowId,
+    name: accountLabel(rowId),
+    amount: formatNum(0),
+    currency: defaultCurrencyForAcc(rowId),
+  };
+}
+
+function createBank() {
+  return {
+    bankId: makeId('bank'),
+    accounts: ACCOUNTS.map(acc => createDefaultAccount(acc.key)),
+  };
+}
+
+function createInitialState() {
+  return {
+    companyNames: { a: '', b: '' },
+    companies: {
+      a: { banks: [createBank()] },
+      b: { banks: [createBank()] },
+    }
+  };
+}
+
+function normalizeAccount(raw) {
+  const rowId = String(raw?.rowId ?? makeId('acc'));
+  const isDefault = isDefaultRowId(rowId);
+
+  return {
+    rowId,
+    name: String(raw?.name ?? (isDefault ? accountLabel(rowId) : '')),
+    amount: formatNum(parseNum(raw?.amount)),
+    currency: String(raw?.currency ?? (isDefault ? defaultCurrencyForAcc(rowId) : 'PLN')).toUpperCase() === 'EUR' ? 'EUR' : 'PLN',
+  };
+}
+
+function normalizeBank(raw) {
+  const accounts = Array.isArray(raw?.accounts) && raw.accounts.length
+    ? raw.accounts.map(normalizeAccount)
+    : ACCOUNTS.map(acc => createDefaultAccount(acc.key));
+
+  return {
+    bankId: String(raw?.bankId ?? makeId('bank')),
+    accounts,
+  };
+}
+
+function normalizeState(raw) {
+  const next = {
+    companyNames: { a: '', b: '' },
+    companies: { a: { banks: [] }, b: { banks: [] } }
+  };
+
+  COMPANIES.forEach(letter => {
+    next.companyNames[letter] = String(raw?.companyNames?.[letter] ?? '');
+    const banks = Array.isArray(raw?.companies?.[letter]?.banks) ? raw.companies[letter].banks : [];
+    next.companies[letter].banks = banks.length ? banks.map(normalizeBank) : [createBank()];
+  });
+
+  return next;
+}
+
+function relabelDefaultAccountNames() {
+  COMPANIES.forEach(letter => {
+    appState.companies[letter].banks.forEach(bank => {
+      bank.accounts.forEach(acc => {
+        if (isDefaultAccountName(acc.rowId, acc.name)) {
+          acc.name = accountLabel(acc.rowId);
+        }
+      });
+    });
+  });
+}
+
+function reformatStoredAmounts() {
+  COMPANIES.forEach(letter => {
+    appState?.companies?.[letter]?.banks?.forEach(bank => {
+      bank.accounts.forEach(acc => {
+        acc.amount = formatNum(parseNum(acc.amount));
+      });
+    });
+  });
+}
+
+function getCompanyDisplayName(letter) {
+  const L = letter.toUpperCase();
+  const raw = appState?.companyNames?.[letter] ?? '';
+  return raw.trim() || t('company.defaultName', { L });
+}
+
+function findBank(letter, bankId) {
+  return appState.companies[letter].banks.find(bank => bank.bankId === bankId);
+}
+
+function findAccount(letter, bankId, rowId) {
+  const bank = findBank(letter, bankId);
+  if (!bank) return null;
+  return bank.accounts.find(acc => acc.rowId === rowId) || null;
 }
 
 function renderAddIcon() {
@@ -258,49 +348,82 @@ function renderRemoveIcon() {
   `;
 }
 
-function renderAccountHeader(company) {
+function renderCompanyHead(letter) {
   return `
-    <div class="th-account-wrap">
-      <span class="js-th-account-text">${t('table.account')}</span>
-      <button class="table-add-btn" type="button" data-company="${company}" aria-label="${t('table.addAccount')}">
-        <span class="table-add-btn-ico">${renderAddIcon()}</span>
-        <span class="js-add-account-text">${t('table.addAccount')}</span>
-      </button>
+    <div class="company-head-row-wrap">
+      <div class="company-head-wrap">
+        <span class="js-company-head-name" data-company="${letter}">${getCompanyDisplayName(letter)}</span>
+        <button class="table-add-btn add-bank-btn" type="button" data-company="${letter}">
+          <span class="table-add-btn-ico">${renderAddIcon()}</span>
+          <span>${t('company.addBank')}</span>
+        </button>
+      </div>
+      <span class="company-head-spacer" aria-hidden="true"></span>
     </div>
   `;
 }
 
-function renderAccountRow(letter, row) {
-  const rowId = row.rowId;
-  const isDefault = isDefaultRowId(rowId);
-  const canRemove = rowId !== 'current';
-  const defaultName = isDefault ? accountLabel(rowId) : '';
-  const nameValue = row.name ?? defaultName;
-  const amountValue = row.amount ?? formatNum(0);
-  const currencyValue = row.currency ?? (isDefault ? defaultCurrencyForAcc(rowId) : 'PLN');
-  const placeholder = isDefault ? defaultName : t('account.newPlaceholder');
-  const idBase = `${letter}_${rowId}`;
+function renderBankHeadRow(letter, bank, index) {
+  const canRemoveBank = index > 0;
 
   return `
-    <tr data-row-id="${rowId}">
+    <tr class="bank-head-row">
+      <td colspan="2">
+        <div class="bank-head-row-wrap">
+          <div class="bank-head-left">
+            <span class="bank-label">${t('bank.label', { N: index + 1 })}</span>
+            <button class="table-add-btn" type="button" data-company="${letter}" data-bank-id="${bank.bankId}" data-add-account="1">
+              <span class="table-add-btn-ico">${renderAddIcon()}</span>
+              <span>${t('table.addAccount')}</span>
+            </button>
+          </div>
+          <span class="bank-amount-label">${t('table.amount')}</span>
+          ${canRemoveBank ? `
+            <button
+              class="bank-remove-btn"
+              type="button"
+              data-company="${letter}"
+              data-bank-id="${bank.bankId}"
+              aria-label="${escapeHtmlAttr(t('bank.remove'))}"
+            >
+              ${renderRemoveIcon()}
+            </button>
+          ` : '<span class="bank-remove-spacer" aria-hidden="true"></span>'}
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
+function renderAccountRow(letter, bankId, acc) {
+  const isDefault = isDefaultRowId(acc.rowId);
+  const canRemove = acc.rowId !== 'current';
+  const defaultName = isDefault ? accountLabel(acc.rowId) : '';
+  const placeholder = isDefault ? defaultName : t('account.newPlaceholder');
+  const idBase = `${letter}_${bankId}_${acc.rowId}`;
+
+  return `
+    <tr data-bank-id="${bankId}" data-row-id="${acc.rowId}">
       <td>
         <div class="acc-name-wrap">
           <input
             class="cell-input acc-name-input"
             id="${idBase}_name"
             data-company="${letter}"
-            data-row-id="${rowId}"
+            data-bank-id="${bankId}"
+            data-row-id="${acc.rowId}"
             type="text"
-            value="${escapeHtmlAttr(nameValue)}"
+            value="${escapeHtmlAttr(acc.name)}"
             placeholder="${escapeHtmlAttr(placeholder)}"
-            aria-label="${escapeHtmlAttr(isDefault ? defaultName : t('account.newPlaceholder'))}"
+            aria-label="${escapeHtmlAttr(placeholder)}"
           >
           ${canRemove ? `
             <button
               class="acc-remove-btn"
               type="button"
               data-company="${letter}"
-              data-row-id="${rowId}"
+              data-bank-id="${bankId}"
+              data-row-id="${acc.rowId}"
               aria-label="${escapeHtmlAttr(t('account.remove'))}"
             >
               ${renderRemoveIcon()}
@@ -314,17 +437,19 @@ function renderAccountRow(letter, row) {
             class="cell-input amt-input"
             id="${idBase}_amt"
             data-company="${letter}"
-            data-row-id="${rowId}"
-            value="${escapeHtmlAttr(amountValue)}"
+            data-bank-id="${bankId}"
+            data-row-id="${acc.rowId}"
+            value="${escapeHtmlAttr(acc.amount)}"
           >
           <select
             class="currency-select amt-cur"
             id="${idBase}_cur"
             data-company="${letter}"
-            data-row-id="${rowId}"
+            data-bank-id="${bankId}"
+            data-row-id="${acc.rowId}"
           >
             ${CURRENCIES.map(c => `
-              <option value="${c.code}" ${c.code === currencyValue ? 'selected' : ''}>${currencyLabel(c.code)}</option>
+              <option value="${c.code}" ${c.code === acc.currency ? 'selected' : ''}>${currencyLabel(c.code)}</option>
             `).join('')}
           </select>
         </div>
@@ -333,111 +458,81 @@ function renderAccountRow(letter, row) {
   `;
 }
 
-function escapeHtmlAttr(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('"', '&quot;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;');
+function renderBankSubtotalRow(letter, bankId) {
+  return `
+    <tr class="bank-subtotal-row">
+      <td>${t('label.total')}</td>
+      <td class="num">
+        <div class="total-box js-bank-total" data-company="${letter}" data-bank-id="${bankId}">
+          ${formatPair({ PLN: 0, EUR: 0 })}
+        </div>
+      </td>
+    </tr>
+  `;
 }
 
-function applyTranslations() {
+function renderCompanyBankRows(letter) {
+  return appState.companies[letter].banks.map((bank, index) => {
+    return [
+      renderBankHeadRow(letter, bank, index),
+      ...bank.accounts.map(acc => renderAccountRow(letter, bank.bankId, acc)),
+      renderBankSubtotalRow(letter, bank.bankId)
+    ].join('');
+  }).join('');
+}
+
+function applyStaticTranslations() {
   document.documentElement.setAttribute('lang', currentLang);
 
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
-    el.textContent = t(key);
+    if (key) el.textContent = t(key);
   });
 
-  document.querySelectorAll('.js-th-account-text').forEach(el => el.textContent = t('table.account'));
-  document.querySelectorAll('.js-add-account-text').forEach(el => el.textContent = t('table.addAccount'));
-  document.querySelectorAll('.table-add-btn').forEach(el => el.setAttribute('aria-label', t('table.addAccount')));
-  document.querySelectorAll('.js-th-amount').forEach(el => el.textContent = t('table.amount'));
-  document.querySelectorAll('.js-company-title').forEach(el => el.textContent = t('card.title'));
-  document.querySelectorAll('.acc-remove-btn').forEach(el => {
-  el.setAttribute('aria-label', t('account.remove'));
-  }); 
-}
-
-/* =========================
-   needs-fill (yellow)
-   ========================= */
-function updateNeedsFill() {
-  document.querySelectorAll('.amt-input:not([readonly])').forEach(inp => {
-    const isZero = parseNum(inp.value) === 0;
-    inp.classList.toggle('needs-fill', isZero);
+  document.querySelectorAll('.js-company-title').forEach(el => {
+    el.textContent = t('card.title');
   });
 
-  document.querySelectorAll('.acc-name-input:not([readonly])').forEach(inp => {
-    const isEmpty = !inp.value.trim();
-    inp.classList.toggle('needs-fill', isEmpty);
-  });
-}
-
-function updateNameInputsI18n() {
   COMPANIES.forEach(letter => {
     const L = letter.toUpperCase();
-
     const label = document.querySelector(`.js-company-name-label[data-letter="${letter}"]`);
-    if (label) label.textContent = t('company.nameLabel', { L });
-
     const input = document.getElementById(`name-${letter}`);
+    if (label) label.textContent = t('company.nameLabel', { L });
     if (input) input.placeholder = t('company.placeholder', { L });
   });
 }
 
-function updateAccountInputsI18n() {
-  document.querySelectorAll('.acc-name-input').forEach(input => {
-    const rowId = input.dataset.rowId;
-    const value = input.value;
+function syncCompanyDisplayNames() {
+  COMPANIES.forEach(letter => {
+    const name = getCompanyDisplayName(letter);
 
-    if (isDefaultRowId(rowId)) {
-      const defaultName = accountLabel(rowId);
-      input.placeholder = defaultName;
-      input.setAttribute('aria-label', defaultName);
-      if (isDefaultAccountName(rowId, value)) {
-        input.value = defaultName;
-      }
-      return;
-    }
+    document.querySelectorAll(`.js-company-head-name[data-company="${letter}"]`).forEach(el => {
+      el.textContent = name;
+    });
 
-    input.placeholder = t('account.newPlaceholder');
-    input.setAttribute('aria-label', t('account.newPlaceholder'));
+    document.querySelectorAll(`.js-summary-name[data-company="${letter}"]`).forEach(el => {
+      el.textContent = name;
+    });
   });
 }
 
-function refreshCompanyNamesUI() {
-  const blockA = document.querySelector('.js-block-a');
-  const blockB = document.querySelector('.js-block-b');
-  const summaryA = document.querySelector('.js-summary-name[data-company="a"]');
-  const summaryB = document.querySelector('.js-summary-name[data-company="b"]');
+function syncHeaderActionButtonWidths() {
+  const buttons = Array.from(document.querySelectorAll(
+    '.th-account-wrap > .table-add-btn, .company-head-wrap > .table-add-btn, .bank-head-left > .table-add-btn'
+  ));
 
-  if (blockA) blockA.textContent = getCompanyDisplayName('a');
-  if (blockB) blockB.textContent = getCompanyDisplayName('b');
-  if (summaryA) summaryA.textContent = getCompanyDisplayName('a');
-  if (summaryB) summaryB.textContent = getCompanyDisplayName('b');
+  if (!buttons.length) {
+    document.documentElement.style.removeProperty('--table-head-btn-width');
+    return;
+  }
+
+  document.documentElement.style.removeProperty('--table-head-btn-width');
+
+  const maxWidth = Math.ceil(Math.max(...buttons.map(btn => btn.getBoundingClientRect().width)));
+  document.documentElement.style.setProperty('--table-head-btn-width', `${maxWidth}px`);
 }
 
-function reformatEditableAmounts() {
-  document.querySelectorAll('.amt-input').forEach(inp => {
-    const value = parseNum(inp.value);
-    const isActive = document.activeElement === inp;
-
-    if (value === 0) {
-      inp.value = isActive ? '' : formatNum(0);
-      return;
-    }
-
-    inp.value = isActive ? formatNumEditable(value) : formatNum(value);
-  });
-
-  updateNeedsFill();
-}
-
-/* =========================
-   Render
-   ========================= */
-function renderApp(rowsByCompany = null) {
+function renderApp() {
   const wrapper = document.getElementById('companies-wrapper');
   const template = document.getElementById('company-template');
   const summaryBody = document.getElementById('summary-body');
@@ -453,97 +548,60 @@ function renderApp(rowsByCompany = null) {
     const L = letter.toUpperCase();
 
     if (nameWrapper) {
-      nameWrapper.innerHTML += `
+      nameWrapper.insertAdjacentHTML('beforeend', `
         <label class="name-field">
           <span class="js-company-name-label" data-letter="${letter}">${t('company.nameLabel', { L })}</span>
-          <input class="name-input" id="name-${letter}" type="text" placeholder="${t('company.placeholder', { L })}">
+          <input class="name-input" id="name-${letter}" type="text" value="${escapeHtmlAttr(appState.companyNames[letter])}" placeholder="${t('company.placeholder', { L })}">
         </label>
-      `;
+      `);
     }
 
-    summaryBody.innerHTML += `
+    summaryBody.insertAdjacentHTML('beforeend', `
       <tr>
-        <td><span class="js-summary-name" data-company="${letter}">${t('company.defaultName', { L })}</span></td>
+        <td><span class="js-summary-name" data-company="${letter}">${getCompanyDisplayName(letter)}</span></td>
         <td class="num js-summary-${letter}">${formatPair({ PLN: 0, EUR: 0 })}</td>
       </tr>
-    `;
+    `);
   });
 
-  const clone = template.content.cloneNode(true);
-  wrapper.appendChild(clone);
-
-  wrapper.querySelectorAll('.block').forEach(block => {
-    const body = block.querySelector('.js-bank-body');
-    const company = body?.dataset.company;
-    const th = block.querySelector('.js-th-account');
-    if (company && th) {
-      th.innerHTML = renderAccountHeader(company);
-    }
-  });
-
-  const rowsSource = rowsByCompany || getDefaultRowsByCompany();
+  wrapper.appendChild(template.content.cloneNode(true));
 
   COMPANIES.forEach(letter => {
     const body = wrapper.querySelector(`.js-bank-body[data-company="${letter}"]`);
     if (!body) return;
 
-    body.innerHTML = '';
-    const rows = Array.isArray(rowsSource[letter]) && rowsSource[letter].length
-      ? rowsSource[letter]
-      : getDefaultRowsByCompany()[letter];
+    const block = body.closest('.block');
+    const blockHead = block.querySelector('.block-head');
+    const table = block.querySelector('.data-table');
+    const totalRow = block.querySelector('.total-row');
+    const totalLabel = totalRow?.querySelector('.total-label');
 
-    rows.forEach(row => {
-      body.insertAdjacentHTML('beforeend', renderAccountRow(letter, row));
-    });
+    if (blockHead) blockHead.innerHTML = renderCompanyHead(letter);
+    if (table) table.classList.add('company-bank-table');
+    body.innerHTML = renderCompanyBankRows(letter);
+
+    if (totalRow) totalRow.classList.add('grand-total-row');
+    if (totalLabel) {
+      totalLabel.removeAttribute('data-i18n');
+      totalLabel.textContent = t('label.grandTotal');
+    }
   });
 
-  applyTranslations();
-  updateNameInputsI18n();
-  updateAccountInputsI18n();
-  refreshCompanyNamesUI();
+  applyStaticTranslations();
+  syncCompanyDisplayNames();
   updateNeedsFill();
   recalcAll();
+  syncHeaderActionButtonWidths();
+
+  if (pendingFocusId) {
+    requestAnimationFrame(() => {
+      const el = document.getElementById(pendingFocusId);
+      el?.focus();
+      pendingFocusId = null;
+    });
+  }
 }
 
-function addAccountRow(letter) {
-  const body = document.querySelector(`.js-bank-body[data-company="${letter}"]`);
-  if (!body) return;
-
-  const row = {
-    rowId: makeCustomRowId(),
-    name: '',
-    amount: formatNum(0),
-    currency: 'PLN',
-  };
-
-  body.insertAdjacentHTML('beforeend', renderAccountRow(letter, row));
-  updateAccountInputsI18n();
-  reformatEditableAmounts();
-  recalcAll();
-  scheduleSave();
-
-  const newInput = document.getElementById(`${letter}_${row.rowId}_name`);
-  newInput?.focus();
-}
-
-function removeAccountRow(letter, rowId) {
-  const body = document.querySelector(`.js-bank-body[data-company="${letter}"]`);
-  if (!body) return;
-
-  const row = Array.from(body.querySelectorAll('tr[data-row-id]'))
-    .find(el => el.dataset.rowId === rowId);
-
-  if (!row) return;
-  if (rowId === 'current') return;
-
-  row.remove();
-  recalcAll();
-  scheduleSave();
-}
-
-/* =========================
-   Calculations
-   ========================= */
 function formatPair(obj) {
   const nbsp = '\u00A0';
   const plnPart = `${currencyLabel('PLN')}${nbsp}${formatNum(obj.PLN || 0)}`;
@@ -569,31 +627,34 @@ function applyPipeRule(el, baseText) {
 }
 
 function recalcAll() {
-  refreshCompanyNamesUI();
+  syncCompanyDisplayNames();
 
-  const totals = {
+  const companyTotals = {
     a: { PLN: 0, EUR: 0 },
     b: { PLN: 0, EUR: 0 },
   };
 
   COMPANIES.forEach(letter => {
-    getCompanyRows(letter).forEach(row => {
-      const rowId = row.dataset.rowId;
-      const amtEl = document.getElementById(`${letter}_${rowId}_amt`);
-      const curEl = document.getElementById(`${letter}_${rowId}_cur`);
-      if (!amtEl || !curEl) return;
+    appState.companies[letter].banks.forEach(bank => {
+      const bankTotal = { PLN: 0, EUR: 0 };
 
-      const amount = parseNum(amtEl.value);
-      const currency = curEl.value || 'PLN';
-      totals[letter][currency] += amount;
+      bank.accounts.forEach(acc => {
+        const amount = parseNum(acc.amount);
+        const currency = acc.currency === 'EUR' ? 'EUR' : 'PLN';
+        bankTotal[currency] += amount;
+        companyTotals[letter][currency] += amount;
+      });
+
+      const bankTotalEl = document.querySelector(`.js-bank-total[data-company="${letter}"][data-bank-id="${bank.bankId}"]`);
+      if (bankTotalEl) bankTotalEl.textContent = formatPair(bankTotal);
     });
   });
 
-  const aText = formatPair(totals.a);
-  const bText = formatPair(totals.b);
+  const aText = formatPair(companyTotals.a);
+  const bText = formatPair(companyTotals.b);
   const totalText = formatPair({
-    PLN: totals.a.PLN + totals.b.PLN,
-    EUR: totals.a.EUR + totals.b.EUR,
+    PLN: companyTotals.a.PLN + companyTotals.b.PLN,
+    EUR: companyTotals.a.EUR + companyTotals.b.EUR,
   });
 
   applyPipeRule(document.querySelector('.js-total-a'), aText);
@@ -605,9 +666,141 @@ function recalcAll() {
   updateNeedsFill();
 }
 
-/* =========================
-   Export / Import
-   ========================= */
+function updateNeedsFill() {
+  document.querySelectorAll('.amt-input:not([readonly])').forEach(inp => {
+    const isZero = parseNum(inp.value) === 0;
+    inp.classList.toggle('needs-fill', isZero);
+  });
+
+  document.querySelectorAll('.acc-name-input:not([readonly])').forEach(inp => {
+    const isEmpty = !inp.value.trim();
+    inp.classList.toggle('needs-fill', isEmpty);
+  });
+}
+
+function addBank(letter) {
+  const bank = createBank();
+  appState.companies[letter].banks.push(bank);
+  pendingFocusId = `${letter}_${bank.bankId}_current_name`;
+  renderApp();
+  scheduleSave();
+}
+
+function addAccount(letter, bankId) {
+  const bank = findBank(letter, bankId);
+  if (!bank) return;
+
+  const rowId = makeId('acc');
+  bank.accounts.push({
+    rowId,
+    name: '',
+    amount: formatNum(0),
+    currency: 'PLN',
+  });
+
+  pendingFocusId = `${letter}_${bankId}_${rowId}_name`;
+  renderApp();
+  scheduleSave();
+}
+
+function removeAccount(letter, bankId, rowId) {
+  if (rowId === 'current') return;
+
+  const bank = findBank(letter, bankId);
+  if (!bank) return;
+
+  bank.accounts = bank.accounts.filter(acc => acc.rowId !== rowId);
+  renderApp();
+  scheduleSave();
+}
+
+function removeBank(letter, bankId) {
+  const banks = appState?.companies?.[letter]?.banks;
+  if (!Array.isArray(banks) || banks.length <= 1) return;
+
+  const bankIndex = banks.findIndex(bank => bank.bankId === bankId);
+  if (bankIndex <= 0) return;
+
+  banks.splice(bankIndex, 1);
+  renderApp();
+  scheduleSave();
+}
+
+function getState() {
+  return {
+    lang: currentLang,
+    companyNames: appState.companyNames,
+    companies: appState.companies,
+  };
+}
+
+function scheduleSave() {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      localStorage.setItem(STATE_KEY, JSON.stringify(getState()));
+    } catch (e) {
+      console.warn('Nie udało się zapisać stanu:', e);
+    }
+  }, 200);
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STATE_KEY);
+    if (!raw) {
+      appState = createInitialState();
+      return;
+    }
+
+    const parsed = JSON.parse(raw);
+
+    if (parsed?.lang && SUPPORTED_LANGS.includes(parsed.lang)) {
+      currentLang = parsed.lang;
+      localStorage.setItem(LANG_KEY, currentLang);
+      setNumberLocale(currentLang);
+    }
+
+    appState = normalizeState(parsed);
+  } catch (e) {
+    console.warn('Nie udało się wczytać stanu:', e);
+    appState = createInitialState();
+  }
+}
+
+function clearAllData() {
+  localStorage.removeItem(STATE_KEY);
+  appState = createInitialState();
+  renderApp();
+  scheduleSave();
+}
+
+function collectDataAoA() {
+  const aoa = [];
+  aoa.push(['lang', currentLang]);
+  aoa.push(['companyName', 'A', appState.companyNames.a]);
+  aoa.push(['companyName', 'B', appState.companyNames.b]);
+  aoa.push([]);
+  aoa.push(['Company', 'BankId', 'RowId', 'AccountName', 'Amount', 'Currency']);
+
+  COMPANIES.forEach(letter => {
+    appState.companies[letter].banks.forEach(bank => {
+      bank.accounts.forEach(acc => {
+        aoa.push([
+          letter.toUpperCase(),
+          bank.bankId,
+          acc.rowId,
+          acc.name,
+          formatNum(parseNum(acc.amount)),
+          acc.currency
+        ]);
+      });
+    });
+  });
+
+  return aoa;
+}
+
 function getDateStamp() {
   const d = new Date();
   const yyyy = d.getFullYear();
@@ -625,26 +818,6 @@ function downloadBlob(blob, filename) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-}
-
-function collectDataAoA() {
-  const aoa = [];
-  aoa.push(['lang', currentLang]);
-  aoa.push(['exportedAt', new Date().toISOString()]);
-  aoa.push([]);
-  aoa.push(['Company', 'RowId', 'AccountName', 'Amount', 'Currency']);
-
-  for (const letter of COMPANIES) {
-    getCompanyRows(letter).forEach(row => {
-      const rowId = row.dataset.rowId;
-      const accName = document.getElementById(`${letter}_${rowId}_name`)?.value ?? '';
-      const amt = document.getElementById(`${letter}_${rowId}_amt`)?.value ?? '';
-      const cur = document.getElementById(`${letter}_${rowId}_cur`)?.value ?? 'PLN';
-      aoa.push([letter.toUpperCase(), rowId, accName, amt, cur]);
-    });
-  }
-
-  return aoa;
 }
 
 function escapeCsvCell(v, sep) {
@@ -734,80 +907,97 @@ function parseCsvToAoA(text, sep) {
   return rows;
 }
 
-function buildRowsByCompanyFromAoA(aoa) {
-  const rowsByCompany = { a: [], b: [] };
-
-  for (const r of aoa) {
-    if (!r || r.length < 4) continue;
-
-    const comp = String(r[0] ?? '').trim().toLowerCase();
-    if (!COMPANIES.includes(comp)) continue;
-
-    if (r.length >= 5) {
-      const rowId = String(r[1] ?? '').trim() || makeCustomRowId();
-      const name = String(r[2] ?? '');
-      const amount = formatNum(parseNum(r[3]));
-      const currency = String(r[4] ?? 'PLN').trim().toUpperCase();
-      rowsByCompany[comp].push({
-        rowId,
-        name,
-        amount,
-        currency: currency === 'EUR' ? 'EUR' : 'PLN',
-      });
-      continue;
-    }
-
-    const accKey = String(r[1] ?? '').trim();
-    const amount = formatNum(parseNum(r[2]));
-    const currency = String(r[3] ?? 'PLN').trim().toUpperCase();
-    if (!isDefaultRowId(accKey)) continue;
-
-    rowsByCompany[comp].push({
-      rowId: accKey,
-      name: accountLabel(accKey),
-      amount,
-      currency: currency === 'EUR' ? 'EUR' : 'PLN',
-    });
-  }
-
-  COMPANIES.forEach(letter => {
-    if (!rowsByCompany[letter].length) {
-      rowsByCompany[letter] = getDefaultRowsByCompany()[letter];
-      return;
-    }
-
-    ACCOUNTS.forEach(acc => {
-      const exists = rowsByCompany[letter].some(row => row.rowId === acc.key);
-      if (!exists) {
-        rowsByCompany[letter].unshift({
-          rowId: acc.key,
-          name: accountLabel(acc.key),
-          amount: formatNum(0),
-          currency: defaultCurrencyForAcc(acc.key),
-        });
-      }
-    });
-  });
-
-  return rowsByCompany;
-}
-
 function applyImportFromAoA(aoa) {
   if (!Array.isArray(aoa) || !aoa.length) return;
 
-  const namesState = Object.fromEntries(COMPANIES.map(letter => [letter, document.getElementById(`name-${letter}`)?.value ?? '']));
-  const rowsByCompany = buildRowsByCompanyFromAoA(aoa);
+  const nextState = {
+    companyNames: { ...appState.companyNames },
+    companies: { a: { banks: [] }, b: { banks: [] } }
+  };
 
-  renderApp(rowsByCompany);
+  const bankMap = {
+    a: new Map(),
+    b: new Map(),
+  };
 
-  COMPANIES.forEach(letter => {
-    const nameEl = document.getElementById(`name-${letter}`);
-    if (nameEl) nameEl.value = namesState[letter] ?? '';
+  function ensureBank(letter, bankId) {
+    if (!bankMap[letter].has(bankId)) {
+      const bank = { bankId, accounts: [] };
+      bankMap[letter].set(bankId, bank);
+      nextState.companies[letter].banks.push(bank);
+    }
+    return bankMap[letter].get(bankId);
+  }
+
+  aoa.forEach(r => {
+    if (!Array.isArray(r) || !r.length) return;
+
+    const first = String(r[0] ?? '').trim();
+
+    if (first === 'companyName' && r.length >= 3) {
+      const comp = String(r[1] ?? '').trim().toLowerCase();
+      if (COMPANIES.includes(comp)) nextState.companyNames[comp] = String(r[2] ?? '');
+      return;
+    }
+
+    const comp = first.toLowerCase();
+    if (!COMPANIES.includes(comp)) return;
+
+    if (r.length >= 6) {
+      const bankId = String(r[1] ?? '').trim() || makeId('bank');
+      const rowId = String(r[2] ?? '').trim() || makeId('acc');
+      const name = String(r[3] ?? '');
+      const amount = formatNum(parseNum(r[4]));
+      const currency = String(r[5] ?? 'PLN').trim().toUpperCase() === 'EUR' ? 'EUR' : 'PLN';
+
+      ensureBank(comp, bankId).accounts.push({ rowId, name, amount, currency });
+      return;
+    }
+
+    if (r.length === 5) {
+      const bankId = 'imported_bank_1';
+      const rowId = String(r[1] ?? '').trim() || makeId('acc');
+      const name = String(r[2] ?? '');
+      const amount = formatNum(parseNum(r[3]));
+      const currency = String(r[4] ?? 'PLN').trim().toUpperCase() === 'EUR' ? 'EUR' : 'PLN';
+
+      ensureBank(comp, bankId).accounts.push({ rowId, name, amount, currency });
+      return;
+    }
+
+    if (r.length === 4) {
+      const bankId = 'imported_bank_1';
+      const rowId = String(r[1] ?? '').trim();
+      if (!isDefaultRowId(rowId)) return;
+
+      const amount = formatNum(parseNum(r[2]));
+      const currency = String(r[3] ?? 'PLN').trim().toUpperCase() === 'EUR' ? 'EUR' : 'PLN';
+
+      ensureBank(comp, bankId).accounts.push({
+        rowId,
+        name: accountLabel(rowId),
+        amount,
+        currency,
+      });
+    }
   });
 
-  updateAccountInputsI18n();
-  reformatEditableAmounts();
-  recalcAll();
+  COMPANIES.forEach(letter => {
+    if (!nextState.companies[letter].banks.length) {
+      nextState.companies[letter].banks = [createBank()];
+    }
+
+    nextState.companies[letter].banks = nextState.companies[letter].banks.map(bank => {
+      if (!bank.accounts.length) {
+        bank.accounts = ACCOUNTS.map(acc => createDefaultAccount(acc.key));
+      }
+      return normalizeBank(bank);
+    });
+  });
+
+  appState = normalizeState(nextState);
+  relabelDefaultAccountNames();
+  renderApp();
   scheduleSave();
 }
 
@@ -862,168 +1052,6 @@ function initImportUI() {
   });
 }
 
-/* =========================
-   State (localStorage)
-   ========================= */
-const STATE_KEY = 'bank_balances_state_v2';
-const LEGACY_STATE_KEYS = ['bank_balances_state_v1'];
-
-function getState() {
-  const state = { lang: currentLang, names: {}, rows: {} };
-
-  for (const letter of COMPANIES) {
-    state.names[letter] = document.getElementById(`name-${letter}`)?.value ?? '';
-    state.rows[letter] = getCompanyRows(letter).map(row => {
-      const rowId = row.dataset.rowId;
-      return {
-        rowId,
-        name: document.getElementById(`${letter}_${rowId}_name`)?.value ?? '',
-        amount: document.getElementById(`${letter}_${rowId}_amt`)?.value ?? formatNum(0),
-        currency: document.getElementById(`${letter}_${rowId}_cur`)?.value ?? (isDefaultRowId(rowId) ? defaultCurrencyForAcc(rowId) : 'PLN'),
-      };
-    });
-  }
-
-  return state;
-}
-
-function applyLegacyState(state) {
-  if (!state || typeof state !== 'object') return;
-
-  if (state.lang && SUPPORTED_LANGS.includes(state.lang)) {
-    currentLang = state.lang;
-    localStorage.setItem(LANG_KEY, currentLang);
-    setNumberLocale(currentLang);
-  }
-
-  renderApp();
-
-  if (state.names && typeof state.names === 'object') {
-    for (const [letter, name] of Object.entries(state.names)) {
-      const el = document.getElementById(`name-${letter}`);
-      if (el) el.value = String(name ?? '');
-    }
-  }
-
-  if (state.accountNames && typeof state.accountNames === 'object') {
-    for (const [k, v] of Object.entries(state.accountNames)) {
-      const el = document.getElementById(k);
-      if (el) el.value = String(v ?? '');
-    }
-  }
-
-  if (state.values && typeof state.values === 'object') {
-    for (const [k, v] of Object.entries(state.values)) {
-      const el = document.getElementById(k);
-      if (el) el.value = String(v);
-    }
-  }
-
-  applyTranslations();
-  updateNameInputsI18n();
-  updateAccountInputsI18n();
-  refreshCompanyNamesUI();
-  reformatEditableAmounts();
-  recalcAll();
-}
-
-function applyState(state) {
-  if (!state || typeof state !== 'object') return;
-
-  if (state.lang && SUPPORTED_LANGS.includes(state.lang)) {
-    currentLang = state.lang;
-    localStorage.setItem(LANG_KEY, currentLang);
-    setNumberLocale(currentLang);
-  }
-
-  if (!state.rows || typeof state.rows !== 'object') {
-    applyLegacyState(state);
-    return;
-  }
-
-  const rowsByCompany = { a: [], b: [] };
-
-  COMPANIES.forEach(letter => {
-    const sourceRows = Array.isArray(state.rows[letter]) ? state.rows[letter] : [];
-    rowsByCompany[letter] = sourceRows.length
-      ? sourceRows.map(row => ({
-          rowId: String(row.rowId ?? makeCustomRowId()),
-          name: String(row.name ?? ''),
-          amount: String(row.amount ?? formatNum(0)),
-          currency: String(row.currency ?? 'PLN').toUpperCase() === 'EUR' ? 'EUR' : 'PLN',
-        }))
-      : getDefaultRowsByCompany()[letter];
-  });
-
-  renderApp(rowsByCompany);
-
-  if (state.names && typeof state.names === 'object') {
-    for (const [letter, name] of Object.entries(state.names)) {
-      const el = document.getElementById(`name-${letter}`);
-      if (el) el.value = String(name ?? '');
-    }
-  }
-
-  applyTranslations();
-  updateNameInputsI18n();
-  updateAccountInputsI18n();
-  refreshCompanyNamesUI();
-  reformatEditableAmounts();
-  recalcAll();
-}
-
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STATE_KEY);
-    if (raw) {
-      applyState(JSON.parse(raw));
-      return;
-    }
-
-    for (const key of LEGACY_STATE_KEYS) {
-      const legacyRaw = localStorage.getItem(key);
-      if (!legacyRaw) continue;
-      applyLegacyState(JSON.parse(legacyRaw));
-      scheduleSave();
-      return;
-    }
-  } catch (e) {
-    console.warn('Nie udało się wczytać stanu:', e);
-  }
-}
-
-let saveTimer = null;
-function scheduleSave() {
-  if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    try {
-      localStorage.setItem(STATE_KEY, JSON.stringify(getState()));
-    } catch (e) {
-      console.warn('Nie udało się zapisać stanu:', e);
-    }
-  }, 200);
-}
-
-function clearAllData() {
-  localStorage.removeItem(STATE_KEY);
-  LEGACY_STATE_KEYS.forEach(key => localStorage.removeItem(key));
-
-  renderApp();
-
-  for (const letter of COMPANIES) {
-    const nameEl = document.getElementById(`name-${letter}`);
-    if (nameEl) nameEl.value = '';
-  }
-
-  updateAccountInputsI18n();
-  reformatEditableAmounts();
-  recalcAll();
-  scheduleSave();
-}
-
-/* =========================
-   Language dropdown
-   ========================= */
 function detectBrowserLang() {
   try {
     const list =
@@ -1047,6 +1075,21 @@ function getInitialLang() {
   return detectBrowserLang() || 'en';
 }
 
+function setLang(lang) {
+  currentLang = SUPPORTED_LANGS.includes(lang) ? lang : 'pl';
+  localStorage.setItem(LANG_KEY, currentLang);
+  setNumberLocale(currentLang);
+
+  reformatStoredAmounts();
+  relabelDefaultAccountNames();
+  renderApp();
+  scheduleSave();
+
+  document.querySelectorAll('.lang-option').forEach(b => {
+    b.classList.toggle('active', b.dataset.lang === currentLang);
+  });
+}
+
 function initLanguageUI() {
   const langBtn = document.getElementById('langBtn');
   const langDropdown = document.getElementById('langDropdown');
@@ -1065,30 +1108,6 @@ function initLanguageUI() {
   function toggleLang() {
     if (langDropdown.classList.contains('open')) closeLang();
     else openLang();
-  }
-
-  function setLang(lang) {
-    currentLang = SUPPORTED_LANGS.includes(lang) ? lang : 'pl';
-    localStorage.setItem(LANG_KEY, currentLang);
-    setNumberLocale(currentLang);
-
-    langOptions.forEach(b => b.classList.toggle('active', b.dataset.lang === currentLang));
-
-    updateAccountInputsI18n();
-
-    document.querySelectorAll('.currency-select').forEach(sel => {
-      const cur = sel.value;
-      sel.innerHTML = CURRENCIES.map(c => `<option value="${c.code}">${currencyLabel(c.code)}</option>`).join('');
-      sel.value = cur;
-    });
-
-    applyTranslations();
-    updateNameInputsI18n();
-    updateAccountInputsI18n();
-    refreshCompanyNamesUI();
-    reformatEditableAmounts();
-    recalcAll();
-    scheduleSave();
   }
 
   langOptions.forEach(b => b.classList.toggle('active', b.dataset.lang === currentLang));
@@ -1112,13 +1131,13 @@ function initLanguageUI() {
   });
 }
 
-/* =========================
-   Init
-   ========================= */
 document.addEventListener('DOMContentLoaded', () => {
   currentLang = getInitialLang();
   setNumberLocale(currentLang);
 
+  loadState();
+  reformatStoredAmounts();
+  relabelDefaultAccountNames();
   renderApp();
 
   document.getElementById('clearDataBtn')?.addEventListener('click', clearAllData);
@@ -1133,15 +1152,27 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.addEventListener('click', e => {
-    const removeBtn = e.target.closest('.acc-remove-btn');
-    if (removeBtn) {
-      removeAccountRow(removeBtn.dataset.company, removeBtn.dataset.rowId);
+    const addBankBtn = e.target.closest('.add-bank-btn');
+    if (addBankBtn) {
+      addBank(addBankBtn.dataset.company);
       return;
     }
 
-    const addBtn = e.target.closest('.table-add-btn');
-    if (addBtn) {
-      addAccountRow(addBtn.dataset.company);
+    const addAccountBtn = e.target.closest('[data-add-account="1"]');
+    if (addAccountBtn) {
+      addAccount(addAccountBtn.dataset.company, addAccountBtn.dataset.bankId);
+      return;
+    }
+
+    const bankRemoveBtn = e.target.closest('.bank-remove-btn');
+    if (bankRemoveBtn) {
+      removeBank(bankRemoveBtn.dataset.company, bankRemoveBtn.dataset.bankId);
+      return;
+    }
+
+    const removeBtn = e.target.closest('.acc-remove-btn');
+    if (removeBtn) {
+      removeAccount(removeBtn.dataset.company, removeBtn.dataset.bankId, removeBtn.dataset.rowId);
     }
   });
 
@@ -1154,12 +1185,51 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.addEventListener('focusout', e => {
     if (e.target.matches('.amt-input:not([readonly])')) {
-      e.target.value = formatNum(parseNum(e.target.value));
+      const amount = formatNum(parseNum(e.target.value));
+      e.target.value = amount;
+
+      const acc = findAccount(
+        e.target.dataset.company,
+        e.target.dataset.bankId,
+        e.target.dataset.rowId
+      );
+      if (acc) acc.amount = amount;
+
+      recalcAll();
+      scheduleSave();
     }
   });
 
   document.addEventListener('input', e => {
-    if (e.target.matches('.cell-input, .name-input')) {
+    if (e.target.matches('.name-input')) {
+      const letter = e.target.id.replace('name-', '');
+      if (COMPANIES.includes(letter)) {
+        appState.companyNames[letter] = e.target.value;
+        syncCompanyDisplayNames();
+        scheduleSave();
+      }
+      return;
+    }
+
+    if (e.target.matches('.acc-name-input')) {
+      const acc = findAccount(
+        e.target.dataset.company,
+        e.target.dataset.bankId,
+        e.target.dataset.rowId
+      );
+      if (acc) acc.name = e.target.value;
+      updateNeedsFill();
+      scheduleSave();
+      return;
+    }
+
+    if (e.target.matches('.amt-input')) {
+      const acc = findAccount(
+        e.target.dataset.company,
+        e.target.dataset.bankId,
+        e.target.dataset.rowId
+      );
+      if (acc) acc.amount = e.target.value;
       recalcAll();
       scheduleSave();
     }
@@ -1167,6 +1237,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.addEventListener('change', e => {
     if (e.target.matches('.currency-select')) {
+      const acc = findAccount(
+        e.target.dataset.company,
+        e.target.dataset.bankId,
+        e.target.dataset.rowId
+      );
+      if (acc) acc.currency = e.target.value;
       recalcAll();
       scheduleSave();
     }
@@ -1174,7 +1250,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
   initImportUI();
   initLanguageUI();
-  loadState();
-  reformatEditableAmounts();
-  recalcAll();
 });
