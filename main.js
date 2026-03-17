@@ -13,7 +13,7 @@ const CURRENCIES = [
 
 const I18N = {
   pl: {
-    'nav.calculator': 'Kalkulator',
+    'nav.calculator': 'Dane',
     'nav.summary': 'Podsumowanie',
     'hero.title': 'Wizualizator Danych',
     'hero.subtitle': 'Salda rachunków bankowych dla spółek A i B.',
@@ -42,7 +42,7 @@ const I18N = {
     'company.defaultName': 'Spółka {L}',
   },
   en: {
-    'nav.calculator': 'Calculator',
+    'nav.calculator': 'Data',
     'nav.summary': 'Summary',
     'hero.title': 'Data Visualizer',
     'hero.subtitle': 'Bank account balances for companies A and B.',
@@ -71,7 +71,7 @@ const I18N = {
     'company.defaultName': 'Company {L}',
   },
   de: {
-    'nav.calculator': 'Rechner',
+    'nav.calculator': 'Daten',
     'nav.summary': 'Zusammenfassung',
     'hero.title': 'Interaktiver Datenvisualisierer',
     'hero.subtitle': 'Kontostände für die Unternehmen A und B.',
