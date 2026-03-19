@@ -1,4 +1,6 @@
-const COMPANIES = ['a', 'b'];
+const MIN_COMPANIES = 1;
+const DEFAULT_COMPANY_COUNT = 2;
+const LEGACY_COMPANIES = ['a', 'b'];
 
 const ACCOUNTS = [
   { key: 'current', pl: 'rachunek bieżący', en: 'current account', de: 'Girokonto' },
@@ -16,7 +18,7 @@ const I18N = {
     'nav.calculator': 'Dane',
     'nav.summary': 'Podsumowanie',
     'hero.title': 'Wizualizator Danych',
-    'hero.subtitle': 'Salda rachunków bankowych dla spółek A i B.',
+    'hero.subtitle': 'Salda rachunków bankowych dla spółek.',
     'hero.note1': 'Edytowalne pola podświetlane są na żółto.',
     'section.summary': 'Podsumowanie',
     'summary.company': 'Spółka',
@@ -27,6 +29,8 @@ const I18N = {
     'table.amount': 'Kwota',
     'table.addAccount': 'Dodaj rachunek',
     'company.addBank': 'Dodaj bank',
+    'company.addCompany': 'Dodaj spółkę',
+    'company.remove': 'Usuń spółkę',
     'bank.label': 'Bank {N}',
     'bank.remove': 'Usuń bank',
     'account.newPlaceholder': 'nowy rachunek',
@@ -36,8 +40,8 @@ const I18N = {
     'export.excel': 'Eksportuj Excel',
     'import.csv': 'Importuj CSV',
     'import.excel': 'Importuj Excel',
-    'card.title': 'Salda Rachunków bankowych',
-    'company.nameLabel': 'Nazwa Spółki {L}',
+    'card.title': 'Salda rachunków bankowych',
+    'company.nameLabel': 'Nazwa spółki {L}',
     'company.placeholder': 'Spółka {L}',
     'company.defaultName': 'Spółka {L}',
   },
@@ -45,7 +49,7 @@ const I18N = {
     'nav.calculator': 'Data',
     'nav.summary': 'Summary',
     'hero.title': 'Data Visualizer',
-    'hero.subtitle': 'Bank account balances for companies A and B.',
+    'hero.subtitle': 'Bank account balances for companies.',
     'hero.note1': 'Editable fields are highlighted in yellow.',
     'section.summary': 'Summary',
     'summary.company': 'Company',
@@ -56,6 +60,8 @@ const I18N = {
     'table.amount': 'Amount',
     'table.addAccount': 'Add account',
     'company.addBank': 'Add bank',
+    'company.addCompany': 'Add company',
+    'company.remove': 'Remove company',
     'bank.label': 'Bank {N}',
     'bank.remove': 'Remove bank',
     'account.newPlaceholder': 'new account',
@@ -74,7 +80,7 @@ const I18N = {
     'nav.calculator': 'Daten',
     'nav.summary': 'Zusammenfassung',
     'hero.title': 'Interaktiver Datenvisualisierer',
-    'hero.subtitle': 'Kontostände für die Unternehmen A und B.',
+    'hero.subtitle': 'Kontostände für Unternehmen.',
     'hero.note1': 'Editierbare Felder sind gelb hervorgehoben.',
     'section.summary': 'Zusammenfassung',
     'summary.company': 'Unternehmen',
@@ -85,6 +91,8 @@ const I18N = {
     'table.amount': 'Betrag',
     'table.addAccount': 'Konto hinzufügen',
     'company.addBank': 'Bank hinzufügen',
+    'company.addCompany': 'Unternehmen hinzufügen',
+    'company.remove': 'Unternehmen entfernen',
     'bank.label': 'Bank {N}',
     'bank.remove': 'Bank entfernen',
     'account.newPlaceholder': 'neues Konto',
@@ -95,9 +103,9 @@ const I18N = {
     'import.csv': 'CSV importieren',
     'import.excel': 'Excel importieren',
     'card.title': 'Kontostände',
-    'company.nameLabel': 'Name der Firma {L}',
-    'company.placeholder': 'Firma {L}',
-    'company.defaultName': 'Firma {L}',
+    'company.nameLabel': 'Name des Unternehmens {L}',
+    'company.placeholder': 'Unternehmen {L}',
+    'company.defaultName': 'Unternehmen {L}',
   }
 };
 
@@ -227,6 +235,18 @@ function escapeHtmlAttr(value) {
     .replaceAll('>', '&gt;');
 }
 
+function companyTokenFromIndex(index) {
+  let n = index;
+  let token = '';
+
+  do {
+    token = String.fromCharCode(65 + (n % 26)) + token;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+
+  return token;
+}
+
 function createDefaultAccount(rowId) {
   return {
     rowId,
@@ -236,21 +256,25 @@ function createDefaultAccount(rowId) {
   };
 }
 
-function createBank() {
+function createBank(bankId = makeId('bank')) {
   return {
-    bankId: makeId('bank'),
+    bankId: String(bankId),
     name: '',
     accounts: ACCOUNTS.map(acc => createDefaultAccount(acc.key)),
   };
 }
 
+function createCompany(companyId = makeId('company')) {
+  return {
+    companyId: String(companyId),
+    name: '',
+    banks: [createBank()],
+  };
+}
+
 function createInitialState() {
   return {
-    companyNames: { a: '', b: '' },
-    companies: {
-      a: { banks: [createBank()] },
-      b: { banks: [createBank()] },
-    }
+    companies: Array.from({ length: DEFAULT_COMPANY_COUNT }, () => createCompany())
   };
 }
 
@@ -278,24 +302,71 @@ function normalizeBank(raw) {
   };
 }
 
-function normalizeState(raw) {
-  const next = {
-    companyNames: { a: '', b: '' },
-    companies: { a: { banks: [] }, b: { banks: [] } }
+function normalizeCompany(raw, usedCompanyIds = new Set()) {
+  let companyId = String(raw?.companyId ?? makeId('company')).trim() || makeId('company');
+
+  while (usedCompanyIds.has(companyId)) {
+    companyId = makeId('company');
+  }
+  usedCompanyIds.add(companyId);
+
+  const banks = Array.isArray(raw?.banks) && raw.banks.length
+    ? raw.banks.map(normalizeBank)
+    : [createBank()];
+
+  return {
+    companyId,
+    name: String(raw?.name ?? raw?.companyName ?? ''),
+    banks,
   };
+}
 
-  COMPANIES.forEach(letter => {
-    next.companyNames[letter] = String(raw?.companyNames?.[letter] ?? '');
-    const banks = Array.isArray(raw?.companies?.[letter]?.banks) ? raw.companies[letter].banks : [];
-    next.companies[letter].banks = banks.length ? banks.map(normalizeBank) : [createBank()];
-  });
+function normalizeState(raw) {
+  const usedCompanyIds = new Set();
 
-  return next;
+  if (Array.isArray(raw?.companies)) {
+    const companies = raw.companies.length
+      ? raw.companies.map(company => normalizeCompany(company, usedCompanyIds))
+      : [createCompany()];
+
+    return {
+      companies: companies.length >= MIN_COMPANIES ? companies : [createCompany()]
+    };
+  }
+
+  if (raw?.companies && typeof raw.companies === 'object') {
+    const companies = LEGACY_COMPANIES.map(letter => {
+      const banks = Array.isArray(raw.companies?.[letter]?.banks) ? raw.companies[letter].banks : [];
+      return normalizeCompany({
+        companyId: letter,
+        name: String(raw?.companyNames?.[letter] ?? ''),
+        banks: banks.length ? banks : [createBank()]
+      }, usedCompanyIds);
+    });
+
+    return {
+      companies: companies.length ? companies : [createCompany()]
+    };
+  }
+
+  return createInitialState();
+}
+
+function getCompanies() {
+  return Array.isArray(appState?.companies) ? appState.companies : [];
+}
+
+function findCompanyIndex(companyId) {
+  return getCompanies().findIndex(company => company.companyId === companyId);
+}
+
+function findCompany(companyId) {
+  return getCompanies().find(company => company.companyId === companyId) || null;
 }
 
 function relabelDefaultAccountNames() {
-  COMPANIES.forEach(letter => {
-    appState.companies[letter].banks.forEach(bank => {
+  getCompanies().forEach(company => {
+    company.banks.forEach(bank => {
       bank.accounts.forEach(acc => {
         if (isDefaultAccountName(acc.rowId, acc.name)) {
           acc.name = accountLabel(acc.rowId);
@@ -306,8 +377,8 @@ function relabelDefaultAccountNames() {
 }
 
 function reformatStoredAmounts() {
-  COMPANIES.forEach(letter => {
-    appState?.companies?.[letter]?.banks?.forEach(bank => {
+  getCompanies().forEach(company => {
+    company.banks.forEach(bank => {
       bank.accounts.forEach(acc => {
         acc.amount = formatNum(parseNum(acc.amount));
       });
@@ -315,10 +386,12 @@ function reformatStoredAmounts() {
   });
 }
 
-function getCompanyDisplayName(letter) {
-  const L = letter.toUpperCase();
-  const raw = appState?.companyNames?.[letter] ?? '';
-  return raw.trim() || t('company.defaultName', { L });
+function getCompanyDisplayName(companyOrId, index = null) {
+  const company = typeof companyOrId === 'string' ? findCompany(companyOrId) : companyOrId;
+  const resolvedIndex = index ?? findCompanyIndex(company?.companyId);
+  const token = companyTokenFromIndex(Math.max(resolvedIndex, 0));
+  const raw = company?.name ?? '';
+  return raw.trim() || t('company.defaultName', { L: token });
 }
 
 function getBankDisplayName(bank, index) {
@@ -326,12 +399,12 @@ function getBankDisplayName(bank, index) {
   return raw.trim() || t('bank.label', { N: index + 1 });
 }
 
-function findBank(letter, bankId) {
-  return appState.companies[letter].banks.find(bank => bank.bankId === bankId);
+function findBank(companyId, bankId) {
+  return findCompany(companyId)?.banks.find(bank => bank.bankId === bankId) || null;
 }
 
-function findAccount(letter, bankId, rowId) {
-  const bank = findBank(letter, bankId);
+function findAccount(companyId, bankId, rowId) {
+  const bank = findBank(companyId, bankId);
   if (!bank) return null;
   return bank.accounts.find(acc => acc.rowId === rowId) || null;
 }
@@ -352,33 +425,43 @@ function renderRemoveIcon() {
   `;
 }
 
-function renderCompanyHead(letter) {
-  const L = letter.toUpperCase();
+function renderCompanyHead(company, index) {
+  const token = companyTokenFromIndex(index);
+  const canRemoveCompany = index > 0;
 
   return `
     <div class="company-head-row-wrap">
       <div class="company-head-wrap">
         <input
           class="cell-input inline-name-input company-inline-input"
-          id="company_${letter}_name"
-          data-company="${letter}"
+          id="company_${company.companyId}_name"
+          data-company-id="${company.companyId}"
           type="text"
-          value="${escapeHtmlAttr(appState.companyNames[letter])}"
-          placeholder="${escapeHtmlAttr(t('company.placeholder', { L }))}"
-          aria-label="${escapeHtmlAttr(t('company.nameLabel', { L }))}"
+          value="${escapeHtmlAttr(company.name)}"
+          placeholder="${escapeHtmlAttr(t('company.placeholder', { L: token }))}"
+          aria-label="${escapeHtmlAttr(t('company.nameLabel', { L: token }))}"
         >
-        <button class="table-add-btn add-bank-btn" type="button" data-company="${letter}">
+        <button class="table-add-btn add-bank-btn" type="button" data-company-id="${company.companyId}">
           <span class="table-add-btn-ico">${renderAddIcon()}</span>
           <span>${t('company.addBank')}</span>
         </button>
       </div>
       <span class="company-head-spacer" aria-hidden="true"></span>
-      <span class="company-head-spacer" aria-hidden="true"></span>
+      ${canRemoveCompany ? `
+        <button
+          class="bank-remove-btn company-remove-btn"
+          type="button"
+          data-company-id="${company.companyId}"
+          aria-label="${escapeHtmlAttr(t('company.remove'))}"
+        >
+          ${renderRemoveIcon()}
+        </button>
+      ` : '<span class="bank-remove-spacer" aria-hidden="true"></span>'}
     </div>
   `;
 }
 
-function renderBankHeadRow(letter, bank, index) {
+function renderBankHeadRow(companyId, bank, index) {
   const label = getBankDisplayName(bank, index);
   const canRemoveBank = index > 0;
 
@@ -389,15 +472,15 @@ function renderBankHeadRow(letter, bank, index) {
           <div class="bank-head-left">
             <input
               class="cell-input inline-name-input bank-name-input"
-              id="${letter}_${bank.bankId}_bank_name"
-              data-company="${letter}"
+              id="${companyId}_${bank.bankId}_bank_name"
+              data-company-id="${companyId}"
               data-bank-id="${bank.bankId}"
               type="text"
               value="${escapeHtmlAttr(bank.name)}"
               placeholder="${escapeHtmlAttr(label)}"
               aria-label="${escapeHtmlAttr(label)}"
             >
-            <button class="table-add-btn" type="button" data-company="${letter}" data-bank-id="${bank.bankId}" data-add-account="1">
+            <button class="table-add-btn" type="button" data-company-id="${companyId}" data-bank-id="${bank.bankId}" data-add-account="1">
               <span class="table-add-btn-ico">${renderAddIcon()}</span>
               <span>${t('table.addAccount')}</span>
             </button>
@@ -407,7 +490,7 @@ function renderBankHeadRow(letter, bank, index) {
             <button
               class="bank-remove-btn"
               type="button"
-              data-company="${letter}"
+              data-company-id="${companyId}"
               data-bank-id="${bank.bankId}"
               aria-label="${escapeHtmlAttr(t('bank.remove'))}"
             >
@@ -420,12 +503,12 @@ function renderBankHeadRow(letter, bank, index) {
   `;
 }
 
-function renderAccountRow(letter, bankId, acc) {
+function renderAccountRow(companyId, bankId, acc) {
   const isDefault = isDefaultRowId(acc.rowId);
   const canRemove = acc.rowId !== 'current';
   const defaultName = isDefault ? accountLabel(acc.rowId) : '';
   const placeholder = isDefault ? defaultName : t('account.newPlaceholder');
-  const idBase = `${letter}_${bankId}_${acc.rowId}`;
+  const idBase = `${companyId}_${bankId}_${acc.rowId}`;
 
   return `
     <tr data-bank-id="${bankId}" data-row-id="${acc.rowId}">
@@ -434,7 +517,7 @@ function renderAccountRow(letter, bankId, acc) {
           <input
             class="cell-input acc-name-input"
             id="${idBase}_name"
-            data-company="${letter}"
+            data-company-id="${companyId}"
             data-bank-id="${bankId}"
             data-row-id="${acc.rowId}"
             type="text"
@@ -446,7 +529,7 @@ function renderAccountRow(letter, bankId, acc) {
             <button
               class="acc-remove-btn"
               type="button"
-              data-company="${letter}"
+              data-company-id="${companyId}"
               data-bank-id="${bankId}"
               data-row-id="${acc.rowId}"
               aria-label="${escapeHtmlAttr(t('account.remove'))}"
@@ -461,7 +544,7 @@ function renderAccountRow(letter, bankId, acc) {
           <input
             class="cell-input amt-input"
             id="${idBase}_amt"
-            data-company="${letter}"
+            data-company-id="${companyId}"
             data-bank-id="${bankId}"
             data-row-id="${acc.rowId}"
             value="${escapeHtmlAttr(acc.amount)}"
@@ -469,7 +552,7 @@ function renderAccountRow(letter, bankId, acc) {
           <select
             class="currency-select amt-cur"
             id="${idBase}_cur"
-            data-company="${letter}"
+            data-company-id="${companyId}"
             data-bank-id="${bankId}"
             data-row-id="${acc.rowId}"
           >
@@ -483,12 +566,12 @@ function renderAccountRow(letter, bankId, acc) {
   `;
 }
 
-function renderBankSubtotalRow(letter, bankId) {
+function renderBankSubtotalRow(companyId, bankId) {
   return `
     <tr class="bank-subtotal-row">
       <td>${t('label.total')}</td>
       <td class="num">
-        <div class="total-box js-bank-total" data-company="${letter}" data-bank-id="${bankId}">
+        <div class="total-box js-bank-total" data-company-id="${companyId}" data-bank-id="${bankId}">
           ${formatPair({ PLN: 0, EUR: 0 })}
         </div>
       </td>
@@ -496,14 +579,46 @@ function renderBankSubtotalRow(letter, bankId) {
   `;
 }
 
-function renderCompanyBankRows(letter) {
-  return appState.companies[letter].banks.map((bank, index) => {
+function renderCompanyBankRows(companyId) {
+  const company = findCompany(companyId);
+  if (!company) return '';
+
+  return company.banks.map((bank, index) => {
     return [
-      renderBankHeadRow(letter, bank, index),
-      ...bank.accounts.map(acc => renderAccountRow(letter, bank.bankId, acc)),
-      renderBankSubtotalRow(letter, bank.bankId)
+      renderBankHeadRow(companyId, bank, index),
+      ...bank.accounts.map(acc => renderAccountRow(companyId, bank.bankId, acc)),
+      renderBankSubtotalRow(companyId, bank.bankId)
     ].join('');
   }).join('');
+}
+
+function renderCompanySection(company, index) {
+  return `
+    <div class="block company-section" data-company-id="${company.companyId}">
+      <div class="block-head">
+        ${renderCompanyHead(company, index)}
+      </div>
+
+      <div class="table-scroll">
+        <table class="data-table company-bank-table">
+          <thead>
+            <tr>
+              <th>${t('summary.company')}</th>
+              <th class="num">${t('table.amount')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${renderCompanyBankRows(company.companyId)}
+          </tbody>
+        </table>
+
+        <div class="total-row grand-total-row">
+          <span class="total-label">${t('label.grandTotal')}</span>
+          <div class="total-box js-company-total" data-company-id="${company.companyId}">${formatPair({ PLN: 0, EUR: 0 })}</div>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 function applyStaticTranslations() {
@@ -517,13 +632,17 @@ function applyStaticTranslations() {
   document.querySelectorAll('.js-company-title').forEach(el => {
     el.textContent = t('card.title');
   });
+
+  document.querySelectorAll('.js-add-company-label').forEach(el => {
+    el.textContent = t('company.addCompany');
+  });
 }
 
 function syncCompanyDisplayNames() {
-  COMPANIES.forEach(letter => {
-    const name = getCompanyDisplayName(letter);
+  getCompanies().forEach((company, index) => {
+    const name = getCompanyDisplayName(company, index);
 
-    document.querySelectorAll(`.js-summary-name[data-company="${letter}"]`).forEach(el => {
+    document.querySelectorAll(`.js-summary-name[data-company-id="${company.companyId}"]`).forEach(el => {
       el.textContent = name;
     });
   });
@@ -554,37 +673,24 @@ function renderApp() {
 
   wrapper.innerHTML = '';
   summaryBody.innerHTML = '';
-
-  COMPANIES.forEach(letter => {
-    summaryBody.insertAdjacentHTML('beforeend', `
-      <tr>
-        <td><span class="js-summary-name" data-company="${letter}">${getCompanyDisplayName(letter)}</span></td>
-        <td class="num js-summary-${letter}">${formatPair({ PLN: 0, EUR: 0 })}</td>
-      </tr>
-    `);
-  });
-
   wrapper.appendChild(template.content.cloneNode(true));
 
-  COMPANIES.forEach(letter => {
-    const body = wrapper.querySelector(`.js-bank-body[data-company="${letter}"]`);
-    if (!body) return;
+  const addCompanyBtn = wrapper.querySelector('.add-company-btn');
+  const addCompanyIcon = addCompanyBtn?.querySelector('.table-add-btn-ico');
+  if (addCompanyIcon) addCompanyIcon.innerHTML = renderAddIcon();
 
-    const block = body.closest('.block');
-    const blockHead = block.querySelector('.block-head');
-    const table = block.querySelector('.data-table');
-    const totalRow = block.querySelector('.total-row');
-    const totalLabel = totalRow?.querySelector('.total-label');
+  const companiesList = wrapper.querySelector('.js-companies-list');
+  if (!companiesList) return;
 
-    if (blockHead) blockHead.innerHTML = renderCompanyHead(letter);
-    if (table) table.classList.add('company-bank-table');
-    body.innerHTML = renderCompanyBankRows(letter);
+  getCompanies().forEach((company, index) => {
+    summaryBody.insertAdjacentHTML('beforeend', `
+      <tr>
+        <td><span class="js-summary-name" data-company-id="${company.companyId}">${getCompanyDisplayName(company, index)}</span></td>
+        <td class="num js-summary-company" data-company-id="${company.companyId}">${formatPair({ PLN: 0, EUR: 0 })}</td>
+      </tr>
+    `);
 
-    if (totalRow) totalRow.classList.add('grand-total-row');
-    if (totalLabel) {
-      totalLabel.removeAttribute('data-i18n');
-      totalLabel.textContent = t('label.grandTotal');
-    }
+    companiesList.insertAdjacentHTML('beforeend', renderCompanySection(company, index));
   });
 
   applyStaticTranslations();
@@ -630,40 +736,32 @@ function applyPipeRule(el, baseText) {
 function recalcAll() {
   syncCompanyDisplayNames();
 
-  const companyTotals = {
-    a: { PLN: 0, EUR: 0 },
-    b: { PLN: 0, EUR: 0 },
-  };
+  const grandTotal = { PLN: 0, EUR: 0 };
 
-  COMPANIES.forEach(letter => {
-    appState.companies[letter].banks.forEach(bank => {
+  getCompanies().forEach(company => {
+    const companyTotal = { PLN: 0, EUR: 0 };
+
+    company.banks.forEach(bank => {
       const bankTotal = { PLN: 0, EUR: 0 };
 
       bank.accounts.forEach(acc => {
         const amount = parseNum(acc.amount);
         const currency = acc.currency === 'EUR' ? 'EUR' : 'PLN';
         bankTotal[currency] += amount;
-        companyTotals[letter][currency] += amount;
+        companyTotal[currency] += amount;
+        grandTotal[currency] += amount;
       });
 
-      const bankTotalEl = document.querySelector(`.js-bank-total[data-company="${letter}"][data-bank-id="${bank.bankId}"]`);
+      const bankTotalEl = document.querySelector(`.js-bank-total[data-company-id="${company.companyId}"][data-bank-id="${bank.bankId}"]`);
       if (bankTotalEl) bankTotalEl.textContent = formatPair(bankTotal);
     });
+
+    const companyText = formatPair(companyTotal);
+    applyPipeRule(document.querySelector(`.js-company-total[data-company-id="${company.companyId}"]`), companyText);
+    applyPipeRule(document.querySelector(`.js-summary-company[data-company-id="${company.companyId}"]`), companyText);
   });
 
-  const aText = formatPair(companyTotals.a);
-  const bText = formatPair(companyTotals.b);
-  const totalText = formatPair({
-    PLN: companyTotals.a.PLN + companyTotals.b.PLN,
-    EUR: companyTotals.a.EUR + companyTotals.b.EUR,
-  });
-
-  applyPipeRule(document.querySelector('.js-total-a'), aText);
-  applyPipeRule(document.querySelector('.js-total-b'), bText);
-  applyPipeRule(document.querySelector('.js-summary-a'), aText);
-  applyPipeRule(document.querySelector('.js-summary-b'), bText);
-  applyPipeRule(document.querySelector('.js-summary-total'), totalText);
-
+  applyPipeRule(document.querySelector('.js-summary-total'), formatPair(grandTotal));
   updateNeedsFill();
 }
 
@@ -679,27 +777,50 @@ function updateNeedsFill() {
   });
 }
 
-function addBank(letter) {
-  const bank = createBank();
-  appState.companies[letter].banks.push(bank);
-  pendingFocusId = `${letter}_${bank.bankId}_bank_name`;
+function addCompany() {
+  const company = createCompany();
+  appState.companies.push(company);
+  pendingFocusId = `company_${company.companyId}_name`;
   renderApp();
   scheduleSave();
 }
 
-function removeBank(letter, bankId) {
-  const banks = appState.companies[letter].banks;
-  const index = banks.findIndex(bank => bank.bankId === bankId);
+function removeCompany(companyId) {
+  const companies = getCompanies();
+  const index = companies.findIndex(company => company.companyId === companyId);
 
+  if (index <= 0 || companies.length <= MIN_COMPANIES) return;
+
+  companies.splice(index, 1);
+  renderApp();
+  scheduleSave();
+}
+
+function addBank(companyId) {
+  const company = findCompany(companyId);
+  if (!company) return;
+
+  const bank = createBank();
+  company.banks.push(bank);
+  pendingFocusId = `${companyId}_${bank.bankId}_bank_name`;
+  renderApp();
+  scheduleSave();
+}
+
+function removeBank(companyId, bankId) {
+  const company = findCompany(companyId);
+  if (!company) return;
+
+  const index = company.banks.findIndex(bank => bank.bankId === bankId);
   if (index <= 0) return;
 
-  banks.splice(index, 1);
+  company.banks.splice(index, 1);
   renderApp();
   scheduleSave();
 }
 
-function addAccount(letter, bankId) {
-  const bank = findBank(letter, bankId);
+function addAccount(companyId, bankId) {
+  const bank = findBank(companyId, bankId);
   if (!bank) return;
 
   const rowId = makeId('acc');
@@ -710,15 +831,15 @@ function addAccount(letter, bankId) {
     currency: 'PLN',
   });
 
-  pendingFocusId = `${letter}_${bankId}_${rowId}_name`;
+  pendingFocusId = `${companyId}_${bankId}_${rowId}_name`;
   renderApp();
   scheduleSave();
 }
 
-function removeAccount(letter, bankId, rowId) {
+function removeAccount(companyId, bankId, rowId) {
   if (rowId === 'current') return;
 
-  const bank = findBank(letter, bankId);
+  const bank = findBank(companyId, bankId);
   if (!bank) return;
 
   bank.accounts = bank.accounts.filter(acc => acc.rowId !== rowId);
@@ -729,7 +850,6 @@ function removeAccount(letter, bankId, rowId) {
 function getState() {
   return {
     lang: currentLang,
-    companyNames: appState.companyNames,
     companies: appState.companies,
   };
 }
@@ -778,23 +898,25 @@ function clearAllData() {
 function collectDataAoA() {
   const aoa = [];
   aoa.push(['lang', currentLang]);
-  aoa.push(['companyName', 'A', appState.companyNames.a]);
-  aoa.push(['companyName', 'B', appState.companyNames.b]);
 
-  COMPANIES.forEach(letter => {
-    appState.companies[letter].banks.forEach(bank => {
-      aoa.push(['bankName', letter.toUpperCase(), bank.bankId, bank.name]);
+  getCompanies().forEach(company => {
+    aoa.push(['companyName', company.companyId, company.name]);
+  });
+
+  getCompanies().forEach(company => {
+    company.banks.forEach(bank => {
+      aoa.push(['bankName', company.companyId, bank.bankId, bank.name]);
     });
   });
 
   aoa.push([]);
   aoa.push(['Company', 'BankId', 'RowId', 'AccountName', 'Amount', 'Currency']);
 
-  COMPANIES.forEach(letter => {
-    appState.companies[letter].banks.forEach(bank => {
+  getCompanies().forEach(company => {
+    company.banks.forEach(bank => {
       bank.accounts.forEach(acc => {
         aoa.push([
-          letter.toUpperCase(),
+          company.companyId,
           bank.bankId,
           acc.rowId,
           acc.name,
@@ -917,48 +1039,58 @@ function parseCsvToAoA(text, sep) {
 function applyImportFromAoA(aoa) {
   if (!Array.isArray(aoa) || !aoa.length) return;
 
-  const nextState = {
-    companyNames: { ...appState.companyNames },
-    companies: { a: { banks: [] }, b: { banks: [] } }
-  };
+  const nextState = { companies: [] };
+  const companyMap = new Map();
+  const bankMaps = new Map();
 
-  const bankMap = {
-    a: new Map(),
-    b: new Map(),
-  };
+  function ensureCompany(rawCompanyId) {
+    const companyId = String(rawCompanyId ?? '').trim() || makeId('company');
 
-  function ensureBank(letter, bankId) {
-    if (!bankMap[letter].has(bankId)) {
-      const bank = { bankId, name: '', accounts: [] };
-      bankMap[letter].set(bankId, bank);
-      nextState.companies[letter].banks.push(bank);
+    if (!companyMap.has(companyId)) {
+      const company = {
+        companyId,
+        name: '',
+        banks: []
+      };
+      companyMap.set(companyId, company);
+      bankMaps.set(companyId, new Map());
+      nextState.companies.push(company);
     }
-    return bankMap[letter].get(bankId);
+
+    return companyMap.get(companyId);
+  }
+
+  function ensureBank(rawCompanyId, rawBankId) {
+    const company = ensureCompany(rawCompanyId);
+    const bankId = String(rawBankId ?? '').trim() || makeId('bank');
+    const companyBankMap = bankMaps.get(company.companyId);
+
+    if (!companyBankMap.has(bankId)) {
+      const bank = { bankId, name: '', accounts: [] };
+      companyBankMap.set(bankId, bank);
+      company.banks.push(bank);
+    }
+
+    return companyBankMap.get(bankId);
   }
 
   aoa.forEach(r => {
     if (!Array.isArray(r) || !r.length) return;
 
     const first = String(r[0] ?? '').trim();
+    if (!first) return;
 
     if (first === 'companyName' && r.length >= 3) {
-      const comp = String(r[1] ?? '').trim().toLowerCase();
-      if (COMPANIES.includes(comp)) nextState.companyNames[comp] = String(r[2] ?? '');
+      ensureCompany(r[1]).name = String(r[2] ?? '');
       return;
     }
 
     if (first === 'bankName' && r.length >= 4) {
-      const comp = String(r[1] ?? '').trim().toLowerCase();
-      if (!COMPANIES.includes(comp)) return;
-
-      const bankId = String(r[2] ?? '').trim() || makeId('bank');
-      const bankName = String(r[3] ?? '');
-      ensureBank(comp, bankId).name = bankName;
+      ensureBank(r[1], r[2]).name = String(r[3] ?? '');
       return;
     }
 
-    const comp = first.toLowerCase();
-    if (!COMPANIES.includes(comp)) return;
+    const companyId = first;
 
     if (r.length >= 6) {
       const bankId = String(r[1] ?? '').trim() || makeId('bank');
@@ -967,7 +1099,7 @@ function applyImportFromAoA(aoa) {
       const amount = formatNum(parseNum(r[4]));
       const currency = String(r[5] ?? 'PLN').trim().toUpperCase() === 'EUR' ? 'EUR' : 'PLN';
 
-      ensureBank(comp, bankId).accounts.push({ rowId, name, amount, currency });
+      ensureBank(companyId, bankId).accounts.push({ rowId, name, amount, currency });
       return;
     }
 
@@ -978,7 +1110,7 @@ function applyImportFromAoA(aoa) {
       const amount = formatNum(parseNum(r[3]));
       const currency = String(r[4] ?? 'PLN').trim().toUpperCase() === 'EUR' ? 'EUR' : 'PLN';
 
-      ensureBank(comp, bankId).accounts.push({ rowId, name, amount, currency });
+      ensureBank(companyId, bankId).accounts.push({ rowId, name, amount, currency });
       return;
     }
 
@@ -990,7 +1122,7 @@ function applyImportFromAoA(aoa) {
       const amount = formatNum(parseNum(r[2]));
       const currency = String(r[3] ?? 'PLN').trim().toUpperCase() === 'EUR' ? 'EUR' : 'PLN';
 
-      ensureBank(comp, bankId).accounts.push({
+      ensureBank(companyId, bankId).accounts.push({
         rowId,
         name: accountLabel(rowId),
         amount,
@@ -999,17 +1131,26 @@ function applyImportFromAoA(aoa) {
     }
   });
 
-  COMPANIES.forEach(letter => {
-    if (!nextState.companies[letter].banks.length) {
-      nextState.companies[letter].banks = [createBank()];
+  if (!nextState.companies.length) {
+    appState = createInitialState();
+    renderApp();
+    scheduleSave();
+    return;
+  }
+
+  nextState.companies = nextState.companies.map(company => {
+    if (!company.banks.length) {
+      company.banks = [createBank()];
     }
 
-    nextState.companies[letter].banks = nextState.companies[letter].banks.map(bank => {
+    company.banks = company.banks.map(bank => {
       if (!bank.accounts.length) {
         bank.accounts = ACCOUNTS.map(acc => createDefaultAccount(acc.key));
       }
       return normalizeBank(bank);
     });
+
+    return company;
   });
 
   appState = normalizeState(nextState);
@@ -1170,27 +1311,39 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.addEventListener('click', e => {
+    const addCompanyBtn = e.target.closest('.add-company-btn');
+    if (addCompanyBtn) {
+      addCompany();
+      return;
+    }
+
+    const removeCompanyBtn = e.target.closest('.company-remove-btn');
+    if (removeCompanyBtn) {
+      removeCompany(removeCompanyBtn.dataset.companyId);
+      return;
+    }
+
     const addBankBtn = e.target.closest('.add-bank-btn');
     if (addBankBtn) {
-      addBank(addBankBtn.dataset.company);
+      addBank(addBankBtn.dataset.companyId);
       return;
     }
 
     const addAccountBtn = e.target.closest('[data-add-account="1"]');
     if (addAccountBtn) {
-      addAccount(addAccountBtn.dataset.company, addAccountBtn.dataset.bankId);
+      addAccount(addAccountBtn.dataset.companyId, addAccountBtn.dataset.bankId);
       return;
     }
 
-    const removeBankBtn = e.target.closest('.bank-remove-btn');
+    const removeBankBtn = e.target.closest('.bank-remove-btn:not(.company-remove-btn)');
     if (removeBankBtn) {
-      removeBank(removeBankBtn.dataset.company, removeBankBtn.dataset.bankId);
+      removeBank(removeBankBtn.dataset.companyId, removeBankBtn.dataset.bankId);
       return;
     }
 
     const removeBtn = e.target.closest('.acc-remove-btn');
     if (removeBtn) {
-      removeAccount(removeBtn.dataset.company, removeBtn.dataset.bankId, removeBtn.dataset.rowId);
+      removeAccount(removeBtn.dataset.companyId, removeBtn.dataset.bankId, removeBtn.dataset.rowId);
     }
   });
 
@@ -1207,7 +1360,7 @@ document.addEventListener('DOMContentLoaded', () => {
       e.target.value = amount;
 
       const acc = findAccount(
-        e.target.dataset.company,
+        e.target.dataset.companyId,
         e.target.dataset.bankId,
         e.target.dataset.rowId
       );
@@ -1220,9 +1373,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.addEventListener('input', e => {
     if (e.target.matches('.company-inline-input')) {
-      const letter = e.target.dataset.company;
-      if (COMPANIES.includes(letter)) {
-        appState.companyNames[letter] = e.target.value;
+      const company = findCompany(e.target.dataset.companyId);
+      if (company) {
+        company.name = e.target.value;
         syncCompanyDisplayNames();
         updateNeedsFill();
         scheduleSave();
@@ -1231,7 +1384,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (e.target.matches('.bank-name-input')) {
-      const bank = findBank(e.target.dataset.company, e.target.dataset.bankId);
+      const bank = findBank(e.target.dataset.companyId, e.target.dataset.bankId);
       if (bank) bank.name = e.target.value;
       updateNeedsFill();
       scheduleSave();
@@ -1240,7 +1393,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (e.target.matches('.acc-name-input')) {
       const acc = findAccount(
-        e.target.dataset.company,
+        e.target.dataset.companyId,
         e.target.dataset.bankId,
         e.target.dataset.rowId
       );
@@ -1252,7 +1405,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (e.target.matches('.amt-input')) {
       const acc = findAccount(
-        e.target.dataset.company,
+        e.target.dataset.companyId,
         e.target.dataset.bankId,
         e.target.dataset.rowId
       );
@@ -1265,7 +1418,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('change', e => {
     if (e.target.matches('.currency-select')) {
       const acc = findAccount(
-        e.target.dataset.company,
+        e.target.dataset.companyId,
         e.target.dataset.bankId,
         e.target.dataset.rowId
       );

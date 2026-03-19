@@ -28,7 +28,7 @@
         </div>
       </div>
 
-      <a href="#cit" data-i18n="nav.calculator">Dane</a>
+      <a href="#cit" data-i18n="nav.calculator">Kalkulator</a>
       <a href="#podsumowanie" data-i18n="nav.summary">Podsumowanie</a>
     </nav>
   </div>
@@ -38,7 +38,7 @@
   <section class="hero">
     <div class="container">
       <h1 data-i18n="hero.title">Data Visualizer</h1>
-      <p class="muted" data-i18n="hero.subtitle">Salda rachunków bankowych dla spółek A i B.</p>
+      <p class="muted" data-i18n="hero.subtitle">Salda rachunków bankowych dla spółek.</p>
 
       <p class="text">
         <b>
@@ -51,7 +51,7 @@
   <section class="section" id="cit">
     <div class="container">
       <div class="section-head">
-        <h2 class="section-title" data-i18n="nav.calculator">Dane</h2>
+        <h2 class="section-title" data-i18n="nav.calculator">Kalkulator</h2>
 
         <div class="section-actions">
           <button class="btn" id="clearDataBtn" type="button">
@@ -154,64 +154,19 @@
 </main>
 
 <template id="company-template">
-  <div class="card company">
-    <h3 class="company-title">
-      <span class="js-company-title">Salda Rachunków bankowych</span>
-    </h3>
+  <div class="card companies-card">
+    <div class="companies-card-head">
+      <h3 class="company-title">
+        <span class="js-company-title">Salda rachunków bankowych</span>
+      </h3>
 
-    <div class="company-layout">
-      <div class="company-left">
-
-        <div class="block">
-          <div class="block-head">
-            <span class="js-block-a">A</span>
-          </div>
-
-          <div class="table-scroll">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th class="js-th-account">Rachunek</th>
-                  <th class="num js-th-amount">Kwota</th>
-                </tr>
-              </thead>
-              <tbody class="js-bank-body" data-company="a"></tbody>
-            </table>
-
-            <div class="total-row">
-              <span class="total-label" data-i18n="label.total">Suma</span>
-              <div class="total-box js-total-a">zł 0,00<br>€ 0,00</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="block">
-          <div class="block-head">
-            <span class="js-block-b">B</span>
-          </div>
-
-          <div class="table-scroll">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th class="js-th-account">Rachunek</th>
-                  <th class="num js-th-amount">Kwota</th>
-                </tr>
-              </thead>
-              <tbody class="js-bank-body" data-company="b"></tbody>
-            </table>
-
-            <div class="total-row">
-              <span class="total-label" data-i18n="label.total">Suma</span>
-              <div class="total-box js-total-b">zł 0,00<br>€ 0,00</div>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-      <div class="company-bottom"></div>
+      <button class="table-add-btn add-company-btn" type="button">
+        <span class="table-add-btn-ico" aria-hidden="true"></span>
+        <span class="js-add-company-label">Dodaj spółkę</span>
+      </button>
     </div>
+
+    <div class="companies-list js-companies-list"></div>
   </div>
 </template>
 

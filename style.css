@@ -182,30 +182,31 @@ body {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
 }
 
+.companies-card {
+  display: grid;
+  gap: 16px;
+}
+
+.companies-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.companies-list {
+  display: grid;
+  gap: 16px;
+}
+
+.company-title {
+  margin: 0;
+}
+
 .companies3 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 16px;
-}
-
-.company-layout {
-  display: grid;
-  gap: 16px;
-}
-
-.company-left {
-  display: grid;
-  gap: 16px;
-}
-
-.company-bottom {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.company-bottom .net {
-  grid-column: 1 / span 2;
 }
 
 .block {
@@ -582,6 +583,7 @@ body {
   display: block;
 }
 
+.company-remove-btn,
 .bank-remove-btn,
 .bank-remove-spacer {
   width: 30px;
@@ -749,6 +751,15 @@ body {
 }
 
 @media (max-width: 650px) {
+  .companies-card-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .companies-card-head > .table-add-btn {
+    align-self: flex-end;
+  }
+
   .export-actions .btn {
     flex: 1;
   }
