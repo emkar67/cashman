@@ -46,6 +46,35 @@ const I18N = {
     'company.nameLabel': 'Nazwa spółki {L}',
     'company.placeholder': 'Spółka {L}',
     'company.defaultName': 'Spółka {L}',
+    'expected.inflow.add': 'Dodaj oczekiwane wpływy',
+    'expected.outflow.add': 'Dodaj oczekiwane wydatki',
+    'expected.inflow.title': 'Oczekiwane wpływy',
+    'expected.outflow.title': 'Oczekiwane wydatki',
+    'expected.inflow.actor': 'Odbiorca',
+    'expected.outflow.actor': 'Dostawca',
+    'expected.invoice': 'Nr faktury',
+    'expected.net': 'Netto',
+    'expected.vat': 'VAT',
+    'expected.gross': 'Brutto',
+    'expected.settled': 'Rozliczono',
+    'expected.remaining': 'Pozostało do zapłaty',
+    'expected.addRow': 'Dodaj pozycję',
+    'expected.removeModule': 'Usuń tabelę',
+    'expected.removeRow': 'Usuń pozycję',
+    'section.expectedInflows': 'Oczekiwane wpływy',
+    'section.expectedOutflows': 'Oczekiwane wydatki',
+    'section.internalBilling': 'Fakturowanie wewnętrzne',
+    'internal.fromCompany': 'Spółka wystawiająca',
+    'internal.toCompany': 'Spółka odbierająca',
+    'internal.invoice': 'Nr faktury',
+    'internal.net': 'Netto',
+    'internal.vat': 'VAT',
+    'internal.gross': 'Brutto',
+    'internal.settled': 'Rozliczono',
+    'internal.remaining': 'Pozostało do zapłaty',
+    'internal.addRow': 'Dodaj pozycję',
+    'internal.removeRow': 'Usuń pozycję',
+    'internal.companyPlaceholder': 'Wybierz spółkę',
   },
   en: {
     'nav.calculator': 'Data',
@@ -77,6 +106,35 @@ const I18N = {
     'company.nameLabel': 'Company {L} name',
     'company.placeholder': 'Company {L}',
     'company.defaultName': 'Company {L}',
+    'expected.inflow.add': 'Add expected income',
+    'expected.outflow.add': 'Add expected expenses',
+    'expected.inflow.title': 'Expected income',
+    'expected.outflow.title': 'Expected expenses',
+    'expected.inflow.actor': 'Recipient',
+    'expected.outflow.actor': 'Supplier',
+    'expected.invoice': 'Invoice no.',
+    'expected.net': 'Net',
+    'expected.vat': 'VAT',
+    'expected.gross': 'Gross',
+    'expected.settled': 'Settled',
+    'expected.remaining': 'Amount due',
+    'expected.addRow': 'Add row',
+    'expected.removeModule': 'Remove table',
+    'expected.removeRow': 'Remove row',
+    'section.expectedInflows': 'Expected income',
+    'section.expectedOutflows': 'Expected expenses',
+    'section.internalBilling': 'Internal invoicing',
+    'internal.fromCompany': 'Issuing company',
+    'internal.toCompany': 'Receiving company',
+    'internal.invoice': 'Invoice no.',
+    'internal.net': 'Net',
+    'internal.vat': 'VAT',
+    'internal.gross': 'Gross',
+    'internal.settled': 'Settled',
+    'internal.remaining': 'Amount due',
+    'internal.addRow': 'Add row',
+    'internal.removeRow': 'Remove row',
+    'internal.companyPlaceholder': 'Choose company',
   },
   de: {
     'nav.calculator': 'Daten',
@@ -108,6 +166,35 @@ const I18N = {
     'company.nameLabel': 'Name des Unternehmens {L}',
     'company.placeholder': 'Unternehmen {L}',
     'company.defaultName': 'Unternehmen {L}',
+    'expected.inflow.add': 'Erwartete Eingänge hinzufügen',
+    'expected.outflow.add': 'Erwartete Ausgaben hinzufügen',
+    'expected.inflow.title': 'Erwartete Eingänge',
+    'expected.outflow.title': 'Erwartete Ausgaben',
+    'expected.inflow.actor': 'Empfänger',
+    'expected.outflow.actor': 'Lieferant',
+    'expected.invoice': 'Rechnungsnr.',
+    'expected.net': 'Netto',
+    'expected.vat': 'MwSt.',
+    'expected.gross': 'Brutto',
+    'expected.settled': 'Abgerechnet',
+    'expected.remaining': 'Noch zu zahlen',
+    'expected.addRow': 'Position hinzufügen',
+    'expected.removeModule': 'Tabelle entfernen',
+    'expected.removeRow': 'Position entfernen',
+    'section.expectedInflows': 'Erwartete Eingänge',
+    'section.expectedOutflows': 'Erwartete Ausgaben',
+    'section.internalBilling': 'Interne Fakturierung',
+    'internal.fromCompany': 'Ausstellende Gesellschaft',
+    'internal.toCompany': 'Empfangende Gesellschaft',
+    'internal.invoice': 'Rechnungsnr.',
+    'internal.net': 'Netto',
+    'internal.vat': 'MwSt.',
+    'internal.gross': 'Brutto',
+    'internal.settled': 'Abgerechnet',
+    'internal.remaining': 'Noch zu zahlen',
+    'internal.addRow': 'Position hinzufügen',
+    'internal.removeRow': 'Position entfernen',
+    'internal.companyPlaceholder': 'Gesellschaft wählen',
   }
 };
 
@@ -188,6 +275,10 @@ function parseNum(v) {
 
   const n = parseFloat(s);
   return Number.isFinite(n) ? n : 0;
+}
+
+function hasManualValue(v) {
+  return String(v ?? '').trim() !== '';
 }
 
 function normalizeCurrency(rawCurrency, fallback = 'PLN') {
@@ -318,12 +409,15 @@ function createCompany(companyId = makeId('company')) {
     companyId: String(companyId),
     name: '',
     banks: [createBank()],
+    expectedInflows: [],
+    expectedOutflows: [],
   };
 }
 
 function createInitialState() {
   return {
-    companies: Array.from({ length: DEFAULT_COMPANY_COUNT }, () => createCompany())
+    companies: Array.from({ length: DEFAULT_COMPANY_COUNT }, () => createCompany()),
+    internalInvoices: [],
   };
 }
 
@@ -340,6 +434,185 @@ function normalizeAccount(raw) {
       isDefault ? defaultCurrencyForAcc(rowId) : 'PLN'
     ),
   };
+}
+
+function createExpectedEntry(entryId = makeId('expected')) {
+  return {
+    entryId: String(entryId),
+    counterparty: '',
+    invoiceNo: '',
+    net: formatNum(0),
+    vat: formatNum(0),
+    gross: formatNum(0),
+    remaining: '',
+  };
+}
+
+function normalizeExpectedEntry(raw) {
+  const hasRemaining = hasManualValue(raw?.remaining);
+  const remaining = hasRemaining
+    ? formatNum(parseNum(raw?.remaining))
+    : (raw?.settled !== undefined && raw?.settled !== null
+        ? formatNum(parseNum(raw?.gross) - parseNum(raw?.settled))
+        : '');
+
+  return {
+    entryId: String(raw?.entryId ?? makeId('expected')),
+    counterparty: String(raw?.counterparty ?? ''),
+    invoiceNo: String(raw?.invoiceNo ?? ''),
+    net: formatNum(parseNum(raw?.net)),
+    vat: formatNum(parseNum(raw?.vat)),
+    gross: formatNum(parseNum(raw?.gross)),
+    remaining,
+  };
+}
+
+function createInternalInvoiceEntry(companyId = '') {
+  const companies = getCompanies();
+  const fromCompanyId = companyId || companies[0]?.companyId || '';
+  const toCompanyId =
+    companies.find(company => company.companyId !== fromCompanyId)?.companyId
+    || fromCompanyId
+    || '';
+
+  return {
+    entryId: String(makeId('internal')),
+    fromCompanyId,
+    toCompanyId,
+    invoiceNo: '',
+    net: formatNum(0),
+    vat: formatNum(0),
+    gross: formatNum(0),
+    remaining: '',
+  };
+}
+
+function normalizeInternalInvoiceEntry(raw) {
+  const hasRemaining = hasManualValue(raw?.remaining);
+  const remaining = hasRemaining
+    ? formatNum(parseNum(raw?.remaining))
+    : (raw?.settled !== undefined && raw?.settled !== null
+        ? formatNum(parseNum(raw?.gross) - parseNum(raw?.settled))
+        : '');
+
+  return {
+    entryId: String(raw?.entryId ?? makeId('internal')),
+    fromCompanyId: String(raw?.fromCompanyId ?? raw?.sellerCompanyId ?? ''),
+    toCompanyId: String(raw?.toCompanyId ?? raw?.buyerCompanyId ?? ''),
+    invoiceNo: String(raw?.invoiceNo ?? ''),
+    net: formatNum(parseNum(raw?.net)),
+    vat: formatNum(parseNum(raw?.vat)),
+    gross: formatNum(parseNum(raw?.gross)),
+    remaining,
+  };
+}
+
+function getInternalInvoices(state = appState) {
+  if (!state || typeof state !== 'object') return [];
+  if (!Array.isArray(state.internalInvoices)) state.internalInvoices = [];
+  return state.internalInvoices;
+}
+
+function findInternalInvoiceEntry(entryId) {
+  return getInternalInvoices().find(entry => entry.entryId === entryId) || null;
+}
+
+function getInternalInvoicesForCompany(companyId) {
+  return getInternalInvoices().filter(entry => entry.fromCompanyId === companyId);
+}
+
+function calcInternalRemaining(entry) {
+  return hasManualValue(entry?.remaining)
+    ? parseNum(entry?.remaining)
+    : parseNum(entry?.gross);
+}
+
+function calcInternalTotals(entries = []) {
+  return entries.reduce((totals, entry) => {
+    totals.net += parseNum(entry?.net);
+    totals.vat += parseNum(entry?.vat);
+    totals.gross += parseNum(entry?.gross);
+    totals.remaining += calcInternalRemaining(entry);
+    return totals;
+  }, createExpectedTotals());
+}
+
+function sanitizeInternalInvoices() {
+  const companies = getCompanies();
+  const ids = companies.map(company => company.companyId);
+  const validIds = new Set(ids);
+  const primary = ids[0] || '';
+
+  getInternalInvoices().forEach(entry => {
+    if (!validIds.has(entry.fromCompanyId)) {
+      entry.fromCompanyId = primary;
+    }
+
+    const fallbackTo =
+      ids.find(id => id !== entry.fromCompanyId)
+      || entry.fromCompanyId
+      || '';
+
+    if (!validIds.has(entry.toCompanyId) || entry.toCompanyId === entry.fromCompanyId) {
+      entry.toCompanyId = fallbackTo;
+    }
+  });
+}
+
+function getCompanySelectOptions(selectedValue = '', excludeCompanyId = '') {
+  const companies = getCompanies();
+  const filtered = companies.filter(company => company.companyId !== excludeCompanyId);
+  const source = filtered.length ? filtered : companies;
+
+  return source.map(company => `
+    <option value="${company.companyId}" ${company.companyId === selectedValue ? 'selected' : ''}>${escapeHtmlAttr(getCompanyDisplayName(company, findCompanyIndex(company.companyId)))}</option>
+  `).join('');
+}
+
+function renderSectionAddRowButton(attrs, labelKey = 'expected.addRow') {
+  return `
+    <button class="table-add-btn inline-section-add-btn" type="button" ${attrs}>
+      <span class="table-add-btn-ico" aria-hidden="true">${renderAddIcon()}</span>
+      <span>${t(labelKey)}</span>
+    </button>
+  `;
+}
+
+function getExpectedKeyByType(type) {
+  return type === 'outflow' ? 'expectedOutflows' : 'expectedInflows';
+}
+
+function getExpectedEntries(companyOrId, type) {
+  const company = typeof companyOrId === 'string' ? findCompany(companyOrId) : companyOrId;
+  if (!company) return [];
+  const key = getExpectedKeyByType(type);
+  if (!Array.isArray(company[key])) company[key] = [];
+  return company[key];
+}
+
+function createExpectedTotals() {
+  return {
+    net: 0,
+    vat: 0,
+    gross: 0,
+    remaining: 0,
+  };
+}
+
+function calcExpectedRemaining(entry) {
+  return hasManualValue(entry?.remaining)
+    ? parseNum(entry?.remaining)
+    : parseNum(entry?.gross);
+}
+
+function calcExpectedTotals(entries = []) {
+  return entries.reduce((totals, entry) => {
+    totals.net += parseNum(entry?.net);
+    totals.vat += parseNum(entry?.vat);
+    totals.gross += parseNum(entry?.gross);
+    totals.remaining += calcExpectedRemaining(entry);
+    return totals;
+  }, createExpectedTotals());
 }
 
 function normalizeBank(raw) {
@@ -370,6 +643,8 @@ function normalizeCompany(raw, usedCompanyIds = new Set()) {
     companyId,
     name: String(raw?.name ?? raw?.companyName ?? ''),
     banks,
+    expectedInflows: Array.isArray(raw?.expectedInflows) ? raw.expectedInflows.map(normalizeExpectedEntry) : [],
+    expectedOutflows: Array.isArray(raw?.expectedOutflows) ? raw.expectedOutflows.map(normalizeExpectedEntry) : [],
   };
 }
 
@@ -381,9 +656,28 @@ function normalizeState(raw) {
       ? raw.companies.map(company => normalizeCompany(company, usedCompanyIds))
       : [createCompany()];
 
-    return {
-      companies: companies.length >= MIN_COMPANIES ? companies : [createCompany()]
+    const state = {
+      companies: companies.length >= MIN_COMPANIES ? companies : [createCompany()],
+      internalInvoices: Array.isArray(raw?.internalInvoices) ? raw.internalInvoices.map(normalizeInternalInvoiceEntry) : [],
     };
+
+    const validIds = new Set(state.companies.map(company => company.companyId));
+    const primary = state.companies[0]?.companyId || '';
+
+    state.internalInvoices.forEach(entry => {
+      if (!validIds.has(entry.fromCompanyId)) entry.fromCompanyId = primary;
+
+      const fallbackTo =
+        state.companies.find(company => company.companyId !== entry.fromCompanyId)?.companyId
+        || entry.fromCompanyId
+        || '';
+
+      if (!validIds.has(entry.toCompanyId) || entry.toCompanyId === entry.fromCompanyId) {
+        entry.toCompanyId = fallbackTo;
+      }
+    });
+
+    return state;
   }
 
   if (raw?.companies && typeof raw.companies === 'object') {
@@ -397,7 +691,8 @@ function normalizeState(raw) {
     });
 
     return {
-      companies: companies.length ? companies : [createCompany()]
+      companies: companies.length ? companies : [createCompany()],
+      internalInvoices: [],
     };
   }
 
@@ -447,6 +742,26 @@ function reformatStoredAmounts() {
         acc.amount = formatNum(parseNum(acc.amount));
       });
     });
+
+    ['inflow', 'outflow'].forEach(type => {
+      getExpectedEntries(company, type).forEach(entry => {
+        entry.net = formatNum(parseNum(entry.net));
+        entry.vat = formatNum(parseNum(entry.vat));
+        entry.gross = formatNum(parseNum(entry.gross));
+        entry.remaining = hasManualValue(entry.remaining)
+          ? formatNum(parseNum(entry.remaining))
+          : '';
+      });
+    });
+  });
+
+  getInternalInvoices().forEach(entry => {
+    entry.net = formatNum(parseNum(entry.net));
+    entry.vat = formatNum(parseNum(entry.vat));
+    entry.gross = formatNum(parseNum(entry.gross));
+    entry.remaining = hasManualValue(entry.remaining)
+      ? formatNum(parseNum(entry.remaining))
+      : '';
   });
 }
 
@@ -471,6 +786,11 @@ function findAccount(companyId, bankId, rowId) {
   const bank = findBank(companyId, bankId);
   if (!bank) return null;
   return bank.accounts.find(acc => acc.rowId === rowId) || null;
+}
+
+function findExpectedEntry(companyId, type, entryId) {
+  const entries = getExpectedEntries(companyId, type);
+  return entries.find(entry => entry.entryId === entryId) || null;
 }
 
 function renderAddIcon() {
@@ -690,6 +1010,213 @@ function renderCompanySection(company, index) {
   `;
 }
 
+function renderExpectedTableRow(companyId, type, entry) {
+  const actorKey = type === 'outflow' ? 'expected.outflow.actor' : 'expected.inflow.actor';
+  const idBase = `expected_${companyId}_${type}_${entry.entryId}`;
+
+  return `
+    <tr>
+      <td>
+        <input
+          class="cell-input expected-text-input"
+          id="${idBase}_counterparty"
+          data-company-id="${companyId}"
+          data-expected-type="${type}"
+          data-entry-id="${entry.entryId}"
+          data-expected-field="counterparty"
+          type="text"
+          value="${escapeHtmlAttr(entry.counterparty)}"
+          placeholder="${escapeHtmlAttr(t(actorKey))}"
+          aria-label="${escapeHtmlAttr(t(actorKey))}"
+        >
+      </td>
+      <td>
+        <input
+          class="cell-input expected-text-input"
+          id="${idBase}_invoice"
+          data-company-id="${companyId}"
+          data-expected-type="${type}"
+          data-entry-id="${entry.entryId}"
+          data-expected-field="invoiceNo"
+          type="text"
+          value="${escapeHtmlAttr(entry.invoiceNo)}"
+          placeholder="${escapeHtmlAttr(t('expected.invoice'))}"
+          aria-label="${escapeHtmlAttr(t('expected.invoice'))}"
+        >
+      </td>
+      <td class="num">
+        <input class="cell-input expected-num-input" data-company-id="${companyId}" data-expected-type="${type}" data-entry-id="${entry.entryId}" data-expected-field="net" value="${escapeHtmlAttr(entry.net)}" aria-label="${escapeHtmlAttr(t('expected.net'))}">
+      </td>
+      <td class="num">
+        <input class="cell-input expected-num-input" data-company-id="${companyId}" data-expected-type="${type}" data-entry-id="${entry.entryId}" data-expected-field="vat" value="${escapeHtmlAttr(entry.vat)}" aria-label="${escapeHtmlAttr(t('expected.vat'))}">
+      </td>
+      <td class="num">
+        <input class="cell-input expected-num-input" data-company-id="${companyId}" data-expected-type="${type}" data-entry-id="${entry.entryId}" data-expected-field="gross" value="${escapeHtmlAttr(entry.gross)}" aria-label="${escapeHtmlAttr(t('expected.gross'))}">
+      </td>
+      <td class="num">
+        <input class="cell-input expected-num-input js-expected-remaining" data-company-id="${companyId}" data-expected-type="${type}" data-entry-id="${entry.entryId}" data-expected-field="remaining" value="${escapeHtmlAttr(formatNum(calcExpectedRemaining(entry)))}" aria-label="${escapeHtmlAttr(t('expected.remaining'))}">
+      </td>
+      <td class="expected-remove-col">
+        <button class="expected-remove-btn" type="button" data-company-id="${companyId}" data-expected-type="${type}" data-entry-id="${entry.entryId}" aria-label="${escapeHtmlAttr(t('expected.removeRow'))}">
+          ${renderRemoveIcon()}
+        </button>
+      </td>
+    </tr>
+  `;
+}
+
+function renderExpectedModule(companyId, type) {
+  return '';
+}
+
+function renderExpectedCompanyBlock(company, index, type) {
+  const actorKey = type === 'outflow' ? 'expected.outflow.actor' : 'expected.inflow.actor';
+  const entries = getExpectedEntries(company, type);
+  const totals = calcExpectedTotals(entries);
+  const addButton = renderSectionAddRowButton(
+    `data-company-id="${company.companyId}" data-add-expected-row="${type}"`
+  );
+
+  return `
+    <div class="block section-company-block" data-company-id="${company.companyId}" data-section-type="${type}">
+      <div class="block-head">
+        <div class="expected-company-head-wrap">
+          <span class="expected-company-title js-company-label" data-company-id="${company.companyId}">
+            ${getCompanyDisplayName(company, index)}
+          </span>
+          ${addButton}
+        </div>
+      </div>
+
+      ${entries.length ? `
+        <div class="table-scroll">
+          <table class="data-table expected-table">
+            <thead>
+              <tr>
+                <th>${t(actorKey)}</th>
+                <th>${t('expected.invoice')}</th>
+                <th class="num">${t('expected.net')}</th>
+                <th class="num">${t('expected.vat')}</th>
+                <th class="num">${t('expected.gross')}</th>
+                <th class="num">${t('expected.remaining')}</th>
+                <th class="expected-remove-col"></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${entries.map(entry => renderExpectedTableRow(company.companyId, type, entry)).join('')}
+            </tbody>
+            <tfoot>
+              <tr>
+                <th colspan="2">${t('summary.total')}</th>
+                <th class="num js-expected-total" data-company-id="${company.companyId}" data-expected-type="${type}" data-total-field="net">${formatNum(totals.net)}</th>
+                <th class="num js-expected-total" data-company-id="${company.companyId}" data-expected-type="${type}" data-total-field="vat">${formatNum(totals.vat)}</th>
+                <th class="num js-expected-total" data-company-id="${company.companyId}" data-expected-type="${type}" data-total-field="gross">${formatNum(totals.gross)}</th>
+                <th class="num js-expected-total" data-company-id="${company.companyId}" data-expected-type="${type}" data-total-field="remaining">${formatNum(totals.remaining)}</th>
+                <th class="expected-remove-col"></th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      ` : `
+        <div class="expected-empty-body" aria-hidden="true"></div>
+      `}
+    </div>
+  `;
+}
+
+function renderExpectedSection(type) {
+  return getCompanies().map((company, index) => renderExpectedCompanyBlock(company, index, type)).join('');
+}
+
+function renderInternalBillingRow(companyId, entry) {
+  const idBase = `internal_${companyId}_${entry.entryId}`;
+
+  return `
+    <tr>
+      <td>
+        <select class="cell-input internal-company-select" id="${idBase}_to" data-entry-id="${entry.entryId}" data-internal-field="toCompanyId" aria-label="${escapeHtmlAttr(t('internal.toCompany'))}">
+          ${getCompanySelectOptions(entry.toCompanyId, companyId)}
+        </select>
+      </td>
+      <td>
+        <input class="cell-input internal-text-input" id="${idBase}_invoice" data-entry-id="${entry.entryId}" data-internal-field="invoiceNo" type="text" value="${escapeHtmlAttr(entry.invoiceNo)}" placeholder="${escapeHtmlAttr(t('internal.invoice'))}" aria-label="${escapeHtmlAttr(t('internal.invoice'))}">
+      </td>
+      <td class="num"><input class="cell-input internal-num-input" data-entry-id="${entry.entryId}" data-internal-field="net" value="${escapeHtmlAttr(entry.net)}" aria-label="${escapeHtmlAttr(t('internal.net'))}"></td>
+      <td class="num"><input class="cell-input internal-num-input" data-entry-id="${entry.entryId}" data-internal-field="vat" value="${escapeHtmlAttr(entry.vat)}" aria-label="${escapeHtmlAttr(t('internal.vat'))}"></td>
+      <td class="num"><input class="cell-input internal-num-input" data-entry-id="${entry.entryId}" data-internal-field="gross" value="${escapeHtmlAttr(entry.gross)}" aria-label="${escapeHtmlAttr(t('internal.gross'))}"></td>
+      <td class="num"><input class="cell-input internal-num-input js-internal-remaining" data-entry-id="${entry.entryId}" data-internal-field="remaining" value="${escapeHtmlAttr(formatNum(calcInternalRemaining(entry)))}" aria-label="${escapeHtmlAttr(t('internal.remaining'))}"></td>
+      <td class="expected-remove-col">
+        <button class="internal-remove-btn expected-remove-btn" type="button" data-entry-id="${entry.entryId}" aria-label="${escapeHtmlAttr(t('internal.removeRow'))}">
+          ${renderRemoveIcon()}
+        </button>
+      </td>
+    </tr>
+  `;
+}
+
+function renderInternalBillingCompanyBlock(company, index) {
+  const entries = getInternalInvoicesForCompany(company.companyId);
+  const totals = calcInternalTotals(entries);
+  const addButton = renderSectionAddRowButton(
+    `data-company-id="${company.companyId}" data-add-internal-row="1"`,
+    'internal.addRow'
+  );
+
+  return `
+    <div class="block section-company-block" data-company-id="${company.companyId}" data-section-type="internal">
+      <div class="block-head">
+        <div class="expected-company-head-wrap">
+          <span class="expected-company-title js-company-label" data-company-id="${company.companyId}">
+            ${getCompanyDisplayName(company, index)}
+          </span>
+          ${addButton}
+        </div>
+      </div>
+
+      ${entries.length ? `
+        <div class="table-scroll">
+          <table class="data-table expected-table internal-billing-table">
+            <thead>
+              <tr>
+                <th>${t('internal.toCompany')}</th>
+                <th>${t('internal.invoice')}</th>
+                <th class="num">${t('internal.net')}</th>
+                <th class="num">${t('internal.vat')}</th>
+                <th class="num">${t('internal.gross')}</th>
+                <th class="num">${t('internal.remaining')}</th>
+                <th class="expected-remove-col"></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${entries.map(entry => renderInternalBillingRow(company.companyId, entry)).join('')}
+            </tbody>
+            <tfoot>
+              <tr>
+                <th colspan="2">${t('summary.total')}</th>
+                <th class="num js-internal-total" data-company-id="${company.companyId}" data-total-field="net">${formatNum(totals.net)}</th>
+                <th class="num js-internal-total" data-company-id="${company.companyId}" data-total-field="vat">${formatNum(totals.vat)}</th>
+                <th class="num js-internal-total" data-company-id="${company.companyId}" data-total-field="gross">${formatNum(totals.gross)}</th>
+                <th class="num js-internal-total" data-company-id="${company.companyId}" data-total-field="remaining">${formatNum(totals.remaining)}</th>
+                <th class="expected-remove-col"></th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      ` : `
+        <div class="expected-empty-body" aria-hidden="true"></div>
+      `}
+    </div>
+  `;
+}
+
+function renderInternalBillingSection() {
+  return `
+    <div class="expected-section-grid internal-billing-grid">
+      ${getCompanies().map((company, index) => renderInternalBillingCompanyBlock(company, index)).join('')}
+    </div>
+  `;
+}
+
 function applyStaticTranslations() {
   document.documentElement.setAttribute('lang', currentLang);
 
@@ -712,6 +1239,14 @@ function syncCompanyDisplayNames() {
     const name = getCompanyDisplayName(company, index);
 
     document.querySelectorAll(`.js-summary-name[data-company-id="${company.companyId}"]`).forEach(el => {
+      el.textContent = name;
+    });
+
+    document.querySelectorAll(`.js-company-label[data-company-id="${company.companyId}"]`).forEach(el => {
+      el.textContent = name;
+    });
+
+    document.querySelectorAll(`.internal-company-select option[value="${company.companyId}"]`).forEach(el => {
       el.textContent = name;
     });
   });
@@ -763,11 +1298,17 @@ function renderApp() {
   const wrapper = document.getElementById('companies-wrapper');
   const template = document.getElementById('company-template');
   const summaryBody = document.getElementById('summary-body');
+  const inflowsWrapper = document.getElementById('expected-inflows-wrapper');
+  const outflowsWrapper = document.getElementById('expected-outflows-wrapper');
+  const internalWrapper = document.getElementById('internal-billing-wrapper');
 
-  if (!wrapper || !template || !summaryBody) return;
+  if (!wrapper || !template || !summaryBody || !inflowsWrapper || !outflowsWrapper || !internalWrapper) return;
 
   wrapper.innerHTML = '';
   summaryBody.innerHTML = '';
+  inflowsWrapper.innerHTML = '';
+  outflowsWrapper.innerHTML = '';
+  internalWrapper.innerHTML = '';
   wrapper.appendChild(template.content.cloneNode(true));
 
   const addCompanyBtn = wrapper.querySelector('.add-company-btn');
@@ -776,6 +1317,8 @@ function renderApp() {
 
   const companiesList = wrapper.querySelector('.js-companies-list');
   if (!companiesList) return;
+
+  sanitizeInternalInvoices();
 
   getCompanies().forEach((company, index) => {
     const companyVisibleCodes = getVisibleCurrencyCodesForCompany(company);
@@ -789,6 +1332,10 @@ function renderApp() {
 
     companiesList.insertAdjacentHTML('beforeend', renderCompanySection(company, index));
   });
+
+  inflowsWrapper.innerHTML = renderExpectedSection('inflow');
+  outflowsWrapper.innerHTML = renderExpectedSection('outflow');
+  internalWrapper.innerHTML = renderInternalBillingSection();
 
   applyStaticTranslations();
   syncCompanyDisplayNames();
@@ -832,6 +1379,12 @@ function applyPipeRule(el, baseText) {
   }
 }
 
+function syncCalculatedInputValue(input, value) {
+  if (!input) return;
+  if (document.activeElement === input) return;
+  input.value = value;
+}
+
 function recalcAll() {
   syncCompanyDisplayNames();
 
@@ -861,31 +1414,62 @@ function recalcAll() {
     const companyVisibleCodes = getVisibleCurrencyCodesForCompany(company);
     const companyText = formatPair(companyTotal, companyVisibleCodes);
 
-    applyPipeRule(
-      document.querySelector(`.js-company-total[data-company-id="${company.companyId}"]`),
-      companyText
-    );
-
-    applyPipeRule(
-      document.querySelector(`.js-summary-company[data-company-id="${company.companyId}"]`),
-      companyText
-    );
+    applyPipeRule(document.querySelector(`.js-company-total[data-company-id="${company.companyId}"]`), companyText);
+    applyPipeRule(document.querySelector(`.js-summary-company[data-company-id="${company.companyId}"]`), companyText);
   });
 
   const grandVisibleCodes = getVisibleCurrencyCodesForAllCompanies();
   applyPipeRule(document.querySelector('.js-summary-total'), formatPair(grandTotal, grandVisibleCodes));
+
+  getCompanies().forEach(company => {
+    ['inflow', 'outflow'].forEach(type => {
+      const entries = getExpectedEntries(company, type);
+
+      entries.forEach(entry => {
+        const remainingEl = document.querySelector(`.js-expected-remaining[data-company-id="${company.companyId}"][data-expected-type="${type}"][data-entry-id="${entry.entryId}"]`);
+        syncCalculatedInputValue(remainingEl, formatNum(calcExpectedRemaining(entry)));
+      });
+
+      const totals = calcExpectedTotals(entries);
+      Object.entries(totals).forEach(([field, value]) => {
+        const totalEl = document.querySelector(`.js-expected-total[data-company-id="${company.companyId}"][data-expected-type="${type}"][data-total-field="${field}"]`);
+        if (totalEl) totalEl.textContent = formatNum(value);
+      });
+    });
+  });
+
+  getCompanies().forEach(company => {
+    const entries = getInternalInvoicesForCompany(company.companyId);
+    const totals = calcInternalTotals(entries);
+
+    entries.forEach(entry => {
+      const remainingEl = document.querySelector(`.js-internal-remaining[data-entry-id="${entry.entryId}"]`);
+      syncCalculatedInputValue(remainingEl, formatNum(calcInternalRemaining(entry)));
+    });
+
+    Object.entries(totals).forEach(([field, value]) => {
+      document.querySelectorAll(`.js-internal-total[data-company-id="${company.companyId}"][data-total-field="${field}"]`).forEach(el => {
+        el.textContent = formatNum(value);
+      });
+    });
+  });
+
   updateNeedsFill();
 }
 
 function updateNeedsFill() {
-  document.querySelectorAll('.amt-input:not([readonly])').forEach(inp => {
+  document.querySelectorAll('.amt-input:not([readonly]), .expected-num-input:not([readonly]), .internal-num-input:not([readonly])').forEach(inp => {
     const isZero = parseNum(inp.value) === 0;
     inp.classList.toggle('needs-fill', isZero);
   });
 
-  document.querySelectorAll('.acc-name-input:not([readonly]), .company-inline-input:not([readonly]), .bank-name-input:not([readonly])').forEach(inp => {
+  document.querySelectorAll('.acc-name-input:not([readonly]), .company-inline-input:not([readonly]), .bank-name-input:not([readonly]), .expected-text-input:not([readonly]), .internal-text-input:not([readonly])').forEach(inp => {
     const isEmpty = !inp.value.trim();
     inp.classList.toggle('needs-fill', isEmpty);
+  });
+
+  document.querySelectorAll('.internal-company-select').forEach(select => {
+    select.classList.toggle('needs-fill', !select.value);
   });
 }
 
@@ -904,6 +1488,7 @@ function removeCompany(companyId) {
   if (index <= 0 || companies.length <= MIN_COMPANIES) return;
 
   companies.splice(index, 1);
+  sanitizeInternalInvoices();
   renderApp();
   scheduleSave();
 }
@@ -959,10 +1544,58 @@ function removeAccount(companyId, bankId, rowId) {
   scheduleSave();
 }
 
+function addExpectedEntry(companyId, type) {
+  const company = findCompany(companyId);
+  if (!company) return;
+
+  const entries = getExpectedEntries(company, type);
+  const entry = createExpectedEntry();
+  entries.push(entry);
+
+  pendingFocusId = `expected_${companyId}_${type}_${entry.entryId}_counterparty`;
+  renderApp();
+  scheduleSave();
+}
+
+function removeExpectedEntry(companyId, type, entryId) {
+  const company = findCompany(companyId);
+  if (!company) return;
+
+  const key = getExpectedKeyByType(type);
+  company[key] = getExpectedEntries(company, type).filter(entry => entry.entryId !== entryId);
+
+  renderApp();
+  scheduleSave();
+}
+
+function removeExpectedModule(companyId, type) {
+  const company = findCompany(companyId);
+  if (!company) return;
+
+  company[getExpectedKeyByType(type)] = [];
+  renderApp();
+  scheduleSave();
+}
+
+function addInternalInvoiceEntry(companyId) {
+  const entry = createInternalInvoiceEntry(companyId);
+  getInternalInvoices().push(entry);
+  pendingFocusId = `internal_${entry.fromCompanyId}_${entry.entryId}_invoice`;
+  renderApp();
+  scheduleSave();
+}
+
+function removeInternalInvoiceEntry(entryId) {
+  appState.internalInvoices = getInternalInvoices().filter(entry => entry.entryId !== entryId);
+  renderApp();
+  scheduleSave();
+}
+
 function getState() {
   return {
     lang: currentLang,
     companies: appState.companies,
+    internalInvoices: getInternalInvoices(),
   };
 }
 
@@ -1037,6 +1670,45 @@ function collectDataAoA() {
         ]);
       });
     });
+  });
+
+  aoa.push([]);
+  aoa.push(['Section', 'Company', 'Type', 'EntryId', 'Counterparty', 'InvoiceNo', 'Net', 'Vat', 'Gross', 'Remaining']);
+
+  getCompanies().forEach(company => {
+    ['inflow', 'outflow'].forEach(type => {
+      getExpectedEntries(company, type).forEach(entry => {
+        aoa.push([
+          'expectedRow',
+          company.companyId,
+          type,
+          entry.entryId,
+          entry.counterparty,
+          entry.invoiceNo,
+          formatNum(parseNum(entry.net)),
+          formatNum(parseNum(entry.vat)),
+          formatNum(parseNum(entry.gross)),
+          formatNum(calcExpectedRemaining(entry))
+        ]);
+      });
+    });
+  });
+
+  aoa.push([]);
+  aoa.push(['Section', 'EntryId', 'FromCompany', 'ToCompany', 'InvoiceNo', 'Net', 'Vat', 'Gross', 'Remaining']);
+
+  getInternalInvoices().forEach(entry => {
+    aoa.push([
+      'internalInvoiceRow',
+      entry.entryId,
+      entry.fromCompanyId,
+      entry.toCompanyId,
+      entry.invoiceNo,
+      formatNum(parseNum(entry.net)),
+      formatNum(parseNum(entry.vat)),
+      formatNum(parseNum(entry.gross)),
+      formatNum(calcInternalRemaining(entry))
+    ]);
   });
 
   return aoa;
@@ -1151,7 +1823,7 @@ function parseCsvToAoA(text, sep) {
 function applyImportFromAoA(aoa) {
   if (!Array.isArray(aoa) || !aoa.length) return;
 
-  const nextState = { companies: [] };
+  const nextState = { companies: [], internalInvoices: [] };
   const companyMap = new Map();
   const bankMaps = new Map();
 
@@ -1162,7 +1834,9 @@ function applyImportFromAoA(aoa) {
       const company = {
         companyId,
         name: '',
-        banks: []
+        banks: [],
+        expectedInflows: [],
+        expectedOutflows: []
       };
       companyMap.set(companyId, company);
       bankMaps.set(companyId, new Map());
@@ -1197,8 +1871,44 @@ function applyImportFromAoA(aoa) {
       return;
     }
 
+    if (
+      (first === 'Company' && String(r[1] ?? '').trim() === 'BankId')
+      || (first === 'Section' && String(r[1] ?? '').trim() === 'Company')
+      || (first === 'Section' && String(r[1] ?? '').trim() === 'EntryId')
+    ) {
+      return;
+    }
+
     if (first === 'bankName' && r.length >= 4) {
       ensureBank(r[1], r[2]).name = String(r[3] ?? '');
+      return;
+    }
+
+    if (first === 'expectedRow' && r.length >= 10) {
+      const company = ensureCompany(r[1]);
+      getExpectedEntries(company, r[2]).push(normalizeExpectedEntry({
+        entryId: r[3],
+        counterparty: r[4],
+        invoiceNo: r[5],
+        net: r[6],
+        vat: r[7],
+        gross: r[8],
+        remaining: r[9],
+      }));
+      return;
+    }
+
+    if (first === 'internalInvoiceRow' && r.length >= 9) {
+      nextState.internalInvoices.push(normalizeInternalInvoiceEntry({
+        entryId: r[1],
+        fromCompanyId: r[2],
+        toCompanyId: r[3],
+        invoiceNo: r[4],
+        net: r[5],
+        vat: r[6],
+        gross: r[7],
+        remaining: r[8],
+      }));
       return;
     }
 
@@ -1266,6 +1976,7 @@ function applyImportFromAoA(aoa) {
   });
 
   appState = normalizeState(nextState);
+  sanitizeInternalInvoices();
   relabelDefaultAccountNames();
   reformatStoredAmounts();
   renderApp();
@@ -1452,9 +2163,46 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    const addExpectedBtn = e.target.closest('[data-add-expected], [data-add-expected-row]');
+    if (addExpectedBtn) {
+      addExpectedEntry(
+        addExpectedBtn.dataset.companyId,
+        addExpectedBtn.dataset.addExpected || addExpectedBtn.dataset.addExpectedRow
+      );
+      return;
+    }
+
+    const addInternalBtn = e.target.closest('[data-add-internal-row]');
+    if (addInternalBtn) {
+      addInternalInvoiceEntry(addInternalBtn.dataset.companyId);
+      return;
+    }
+
     const removeBankBtn = e.target.closest('.bank-remove-btn:not(.company-remove-btn)');
     if (removeBankBtn) {
       removeBank(removeBankBtn.dataset.companyId, removeBankBtn.dataset.bankId);
+      return;
+    }
+
+    const removeExpectedModuleBtn = e.target.closest('[data-remove-expected-module]');
+    if (removeExpectedModuleBtn) {
+      removeExpectedModule(removeExpectedModuleBtn.dataset.companyId, removeExpectedModuleBtn.dataset.removeExpectedModule);
+      return;
+    }
+
+    const removeExpectedBtn = e.target.closest('.expected-remove-btn[data-expected-type]');
+    if (removeExpectedBtn) {
+      removeExpectedEntry(
+        removeExpectedBtn.dataset.companyId,
+        removeExpectedBtn.dataset.expectedType,
+        removeExpectedBtn.dataset.entryId
+      );
+      return;
+    }
+
+    const removeInternalBtn = e.target.closest('.internal-remove-btn');
+    if (removeInternalBtn) {
+      removeInternalInvoiceEntry(removeInternalBtn.dataset.entryId);
       return;
     }
 
@@ -1465,7 +2213,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.addEventListener('focusin', e => {
-    if (e.target.matches('.amt-input:not([readonly])')) {
+    if (e.target.matches('.amt-input:not([readonly]), .expected-num-input:not([readonly]), .internal-num-input:not([readonly])')) {
       const val = parseNum(e.target.value);
       e.target.value = val === 0 ? '' : formatNumEditable(val);
     }
@@ -1482,6 +2230,51 @@ document.addEventListener('DOMContentLoaded', () => {
         e.target.dataset.rowId
       );
       if (acc) acc.amount = amount;
+
+      recalcAll();
+      scheduleSave();
+      return;
+    }
+
+    if (e.target.matches('.expected-num-input:not([readonly])')) {
+      const field = e.target.dataset.expectedField;
+      const entry = findExpectedEntry(
+        e.target.dataset.companyId,
+        e.target.dataset.expectedType,
+        e.target.dataset.entryId
+      );
+
+      if (!entry) return;
+
+      if (field === 'remaining') {
+        const raw = e.target.value.trim();
+        entry.remaining = raw ? formatNum(parseNum(raw)) : '';
+        e.target.value = formatNum(calcExpectedRemaining(entry));
+      } else {
+        const amount = formatNum(parseNum(e.target.value));
+        e.target.value = amount;
+        entry[field] = amount;
+      }
+
+      recalcAll();
+      scheduleSave();
+      return;
+    }
+
+    if (e.target.matches('.internal-num-input:not([readonly])')) {
+      const field = e.target.dataset.internalField;
+      const entry = findInternalInvoiceEntry(e.target.dataset.entryId);
+      if (!entry) return;
+
+      if (field === 'remaining') {
+        const raw = e.target.value.trim();
+        entry.remaining = raw ? formatNum(parseNum(raw)) : '';
+        e.target.value = formatNum(calcInternalRemaining(entry));
+      } else {
+        const amount = formatNum(parseNum(e.target.value));
+        e.target.value = amount;
+        entry[field] = amount;
+      }
 
       recalcAll();
       scheduleSave();
@@ -1529,6 +2322,46 @@ document.addEventListener('DOMContentLoaded', () => {
       if (acc) acc.amount = e.target.value;
       recalcAll();
       scheduleSave();
+      return;
+    }
+
+    if (e.target.matches('.expected-text-input')) {
+      const entry = findExpectedEntry(
+        e.target.dataset.companyId,
+        e.target.dataset.expectedType,
+        e.target.dataset.entryId
+      );
+      if (entry) entry[e.target.dataset.expectedField] = e.target.value;
+      updateNeedsFill();
+      scheduleSave();
+      return;
+    }
+
+    if (e.target.matches('.expected-num-input')) {
+      const entry = findExpectedEntry(
+        e.target.dataset.companyId,
+        e.target.dataset.expectedType,
+        e.target.dataset.entryId
+      );
+      if (entry) entry[e.target.dataset.expectedField] = e.target.value;
+      recalcAll();
+      scheduleSave();
+      return;
+    }
+
+    if (e.target.matches('.internal-text-input')) {
+      const entry = findInternalInvoiceEntry(e.target.dataset.entryId);
+      if (entry) entry[e.target.dataset.internalField] = e.target.value;
+      updateNeedsFill();
+      scheduleSave();
+      return;
+    }
+
+    if (e.target.matches('.internal-num-input')) {
+      const entry = findInternalInvoiceEntry(e.target.dataset.entryId);
+      if (entry) entry[e.target.dataset.internalField] = e.target.value;
+      recalcAll();
+      scheduleSave();
     }
   });
 
@@ -1541,6 +2374,14 @@ document.addEventListener('DOMContentLoaded', () => {
       );
       if (acc) acc.currency = e.target.value;
       recalcAll();
+      scheduleSave();
+      return;
+    }
+
+    if (e.target.matches('.internal-company-select')) {
+      const entry = findInternalInvoiceEntry(e.target.dataset.entryId);
+      if (entry) entry[e.target.dataset.internalField] = e.target.value;
+      updateNeedsFill();
       scheduleSave();
     }
   });
