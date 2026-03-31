@@ -19,8 +19,8 @@ const I18N = {
   pl: {
     'nav.calculator': 'Dane',
     'nav.summary': 'Podsumowanie',
-    'hero.title': 'Wizualizator Danych',
-    'hero.subtitle': 'Salda rachunków bankowych dla spółek.',
+    'hero.title': 'Symulator przepływów pieniężnych',
+    'hero.subtitle': 'Salda poszczególnych rachunków bankowych, oczekiwane wpływy/wydatki i przepływy pomiędzy spółkami.',
     'hero.note1': 'Edytowalne pola podświetlane są na żółto.',
     'section.summary': 'Podsumowanie',
     'summary.company': 'Spółka',
@@ -79,8 +79,8 @@ const I18N = {
   en: {
     'nav.calculator': 'Data',
     'nav.summary': 'Summary',
-    'hero.title': 'Data Visualizer',
-    'hero.subtitle': 'Bank account balances for companies.',
+    'hero.title': 'Cash Management Tool',
+    'hero.subtitle': 'Bank account balances for companies, expected inflows/outflows and internal billing.',
     'hero.note1': 'Editable fields are highlighted in yellow.',
     'section.summary': 'Summary',
     'summary.company': 'Company',
@@ -139,8 +139,8 @@ const I18N = {
   de: {
     'nav.calculator': 'Daten',
     'nav.summary': 'Zusammenfassung',
-    'hero.title': 'Interaktiver Datenvisualisierer',
-    'hero.subtitle': 'Kontostände für Unternehmen.',
+    'hero.title': 'Cash-Management-Tool',
+    'hero.subtitle': 'Kontostände der Bankkonten von Unternehmen, erwartete Ein- und Auszahlungen sowie interne Verrechnung.',
     'hero.note1': 'Editierbare Felder sind gelb hervorgehoben.',
     'section.summary': 'Zusammenfassung',
     'summary.company': 'Unternehmen',
