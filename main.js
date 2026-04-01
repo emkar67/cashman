@@ -1092,6 +1092,15 @@ function renderExpectedCompanyBlock(company, index, type) {
       ${hasEntries ? `
         <div class="table-scroll">
           <table class="data-table expected-table">
+            <colgroup>
+              <col class="expected-col-counterparty">
+              <col class="expected-col-invoice">
+              <col class="expected-col-num">
+              <col class="expected-col-num">
+              <col class="expected-col-num">
+              <col class="expected-col-num">
+              <col class="expected-col-remove">
+            </colgroup>
             <thead>
               <tr>
                 <th>${t(actorKey)}</th>
@@ -1176,6 +1185,15 @@ function renderInternalBillingCompanyBlock(company, index) {
       ${hasEntries ? `
         <div class="table-scroll">
           <table class="data-table expected-table internal-billing-table">
+            <colgroup>
+              <col class="internal-col-company">
+              <col class="internal-col-invoice">
+              <col class="internal-col-num">
+              <col class="internal-col-num">
+              <col class="internal-col-num">
+              <col class="internal-col-num">
+              <col class="internal-col-remove">
+            </colgroup>
             <thead>
               <tr>
                 <th>${t('internal.toCompany')}</th>
